@@ -250,6 +250,7 @@ async function processPDF() {
       // 5. Apply password protection
       const saveOptions = getCompressionSaveOptions();
       if (isPasswordEnabled()) {
+        showStatus("Applying password protection...", "processing");
         const tempBytes = await pdfDoc.save(saveOptions);
         const protectedBytes = await applyPasswordProtection(tempBytes);
         processedPdfBytes = protectedBytes;

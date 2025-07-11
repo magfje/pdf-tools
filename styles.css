@@ -24,9 +24,9 @@
   --spacing-4xl: 55px;
 
   /* Borders */
-  --border-width: 2px;
-  --border-dashed: 2px dashed var(--primary-text);
-  --border-solid: 2px solid var(--primary-text);
+  --border-width: 1px;
+  --border-dashed: 1px dashed var(--primary-text);
+  --border-solid: 1px solid var(--primary-text);
 
   /* Typography */
   --font-family: "JetBrains Mono", monospace;
@@ -186,6 +186,61 @@ h3 {
   font-weight: 600;
 }
 
+.operation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.operation-header h3 {
+  margin-bottom: 0;
+  flex-grow: 1;
+}
+
+.operation-checkbox {
+  width: 1.25em !important;
+  height: 1.25em !important;
+  min-width: 1.25em;
+  min-height: 1.25em;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: var(--border-solid) !important;
+  background: var(--transparent) !important;
+  cursor: pointer;
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: var(--transition-fast);
+}
+
+.operation-checkbox:focus {
+  outline: none;
+  background: var(--hover-overlay) !important;
+}
+
+.operation-checkbox:hover {
+  background: var(--hover-overlay) !important;
+}
+
+.operation-checkbox:checked {
+  background: var(--transparent) !important;
+}
+
+.operation-checkbox:checked::after {
+  content: "✓";
+  font-family: var(--font-family);
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--primary-text);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+}
+
 .form-group {
   margin-bottom: var(--spacing-md);
   display: grid;
@@ -320,20 +375,20 @@ input[type="file"]:hover {
 
 .download-section {
   text-align: center;
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-xs);
   width: 100%;
 }
 
 .download-btn {
   background: var(--primary-text);
   color: var(--primary-bg);
-  padding: var(--spacing-md) var(--spacing-2xl);
+  padding: var(--spacing-lg) var(--spacing-2xl);
   border: var(--border-solid);
   cursor: pointer;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   font-weight: 600;
   transition: var(--transition-fast);
-  margin: 5px;
+  /* margin: 5px; */
   width: 100%;
 }
 
@@ -376,67 +431,195 @@ input[type="number"]::-webkit-inner-spin-button {
 /* Select dropdown styling */
 select {
   /* Remove default styling for consistency across browsers */
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  -ms-appearance: none;
-  border: var(--border-solid);
-  background: var(--transparent);
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  -ms-appearance: none !important;
+  border: var(--border-solid) !important;
+  background: var(--transparent) !important;
   cursor: pointer;
-  color: var(--primary-text);
-  background-repeat: no-repeat;
-  background-position: right var(--spacing-sm) center;
-  background-size: var(--spacing-md);
-  padding-right: var(--spacing-3xl);
-  font-family: var(--font-family);
-  font-size: var(--font-size-base);
-  border-radius: 0;
-  outline: none;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  color: var(--primary-text) !important;
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size-base) !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  transition: var(--transition-fast);
+  position: relative;
+  padding-right: var(--spacing-3xl) !important;
+
+  /* Custom dropdown arrow - simple text-based approach */
+  background-image: none !important;
+  background-repeat: no-repeat !important;
+  background-position: right var(--spacing-sm) center !important;
+  background-size: 12px !important;
+}
+
+/* Custom dropdown arrow using simple CSS */
+select {
+  background-image: linear-gradient(
+      45deg,
+      transparent 50%,
+      var(--primary-text) 50%
+    ),
+    linear-gradient(135deg, var(--primary-text) 50%, transparent 50%) !important;
+  background-position: calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px) !important;
+  background-size: 4px 4px, 4px 4px !important;
+}
+
+select:hover {
+  background-color: var(--hover-overlay) !important;
+  border-color: var(--primary-text) !important;
 }
 
 select:focus {
-  background: var(--hover-overlay);
-  border-color: var(--primary-text);
-  color: var(--primary-text);
-  border-radius: 0;
+  background-color: var(--hover-overlay) !important;
+  border-color: var(--primary-text) !important;
+  color: var(--primary-text) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 0 0 1px var(--primary-text) !important;
 }
 
 select option {
-  background: var(--primary-bg);
-  color: var(--primary-text);
-  font-family: var(--font-family);
-  font-size: var(--font-size-base);
-  border: none;
-  border-radius: 0;
-  padding: var(--spacing-sm) var(--spacing-md);
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  -ms-appearance: none !important;
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size-base) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  transition: var(--transition-fast);
+}
+
+select option:hover {
+  background-color: var(--hover-overlay) !important;
+  color: var(--primary-text) !important;
+}
+
+select option:checked,
+select option:selected {
+  background-color: var(--hover-overlay) !important;
+  color: var(--primary-text) !important;
 }
 
 /* For Webkit browsers: style the dropdown popover */
 select::-webkit-dropdown-list,
 select::-webkit-list-box {
-  background: var(--primary-bg);
-  color: var(--primary-text);
-  border-radius: 0;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  -ms-appearance: none !important;
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  border: var(--border-solid) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* More specific dropdown styling */
+select::-webkit-dropdown-menu {
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  border: var(--border-solid) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+select::-webkit-dropdown-item {
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size-base) !important;
+}
+
+select::-webkit-dropdown-item:hover {
+  background: var(--hover-overlay) !important;
+  color: var(--primary-text) !important;
+}
+
+select::-webkit-dropdown-item:checked {
+  background: var(--hover-overlay) !important;
+  color: var(--primary-text) !important;
 }
 
 /* For Firefox: style the dropdown popover */
 select:-moz-focusring {
-  color: var(--primary-text);
-  background: var(--primary-bg);
-  border-radius: 0;
+  color: var(--primary-text) !important;
+  background: var(--primary-bg) !important;
+  border-radius: 0 !important;
+  outline: none !important;
+}
+
+/* Firefox specific dropdown styling */
+select:-moz-any() {
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  border: var(--border-solid) !important;
+  border-radius: 0 !important;
+}
+
+/* Target the actual dropdown menu container */
+select[size],
+select[multiple] {
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  border: var(--border-solid) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Additional browser-specific resets */
+select::-moz-dropdown-menu {
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  border: var(--border-solid) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 /* For Windows High Contrast Mode */
 @media (forced-colors: active) {
   select,
   select option {
-    forced-color-adjust: none;
-    background: var(--primary-bg);
-    color: var(--primary-text);
-    border-color: var(--primary-text);
-    border-radius: 0;
+    forced-color-adjust: none !important;
+    background: var(--primary-bg) !important;
+    color: var(--primary-text) !important;
+    border-color: var(--primary-text) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
+}
+
+/* Global dropdown styling override */
+*::-webkit-dropdown-menu,
+*::-webkit-dropdown-list,
+*::-webkit-dropdown-item {
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+  border: var(--border-solid) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family: var(--font-family) !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  margin: 0 !important;
+}
+
+/* Remove any unwanted styling from select elements */
+select * {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
 }
 
 @media (max-width: 768px) {

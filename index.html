@@ -36,56 +36,7 @@
       document.head.appendChild(script);
     </script>
 
-    <!-- PyScript for Python in browser -->
-    <link
-      rel="stylesheet"
-      href="https://pyscript.net/releases/2024.1.1/core.css"
-    />
-    <script
-      type="module"
-      src="https://pyscript.net/releases/2024.1.1/core.js"
-    ></script>
-
-    <!-- PyScript configuration -->
-    <py-config> packages = ["pypdf"] </py-config>
-
-    <!-- Python script for PDF password protection -->
-    <!-- prettier-ignore -->
-    <py-script>
-from pypdf import PdfReader, PdfWriter 
-from js import console, Uint8Array
-import io 
-
-def encrypt_pdf_with_password(pdf_bytes, password): 
-    try:
-        console.log("Python: Starting PDF encryption") 
-        pdf_data = bytes(pdf_bytes)
-        console.log(f"Python: PDF data length: {len(pdf_data)}") 
-        pdf_stream = io.BytesIO(pdf_data) 
-        reader = PdfReader(pdf_stream) 
-        console.log(f"Python: PDF has {len(reader.pages)} pages") 
-        
-        writer = PdfWriter() 
-        for page in reader.pages: 
-            writer.add_page(page) 
-        
-        writer.encrypt(password)
-        console.log("Python: PDF encrypted successfully") 
-        
-        output_stream = io.BytesIO() 
-        writer.write(output_stream) 
-        encrypted_bytes = output_stream.getvalue() 
-        console.log(f"Python: Encrypted PDF length: {len(encrypted_bytes)}") 
-        
-        return Uint8Array.new(encrypted_bytes) 
-        
-    except Exception as e: 
-        console.error(f"Python encryption error: {str(e)}") 
-        raise e 
-
-from pyscript import window 
-window.encrypt_pdf_with_password = encrypt_pdf_with_password
-     </py-script>
+    <!-- PyScript will be loaded dynamically when needed -->
 
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -111,11 +62,15 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
       <div class="operations-grid" id="operationsGrid" style="display: none">
         <!-- Password Protection -->
         <div class="operation-card">
-          <h3>password</h3>
-          <div class="checkbox-group">
-            <input type="checkbox" id="enablePassword" />
-            <label for="enablePassword">password protect</label>
+          <div class="operation-header">
+            <h3>password</h3>
+            <input
+              type="checkbox"
+              id="enablePassword"
+              class="operation-checkbox"
+            />
           </div>
+
           <div id="passwordGroup" style="display: none">
             <div class="form-group">
               <label for="pdfPassword">password:</label>
@@ -123,6 +78,10 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
                 type="password"
                 id="pdfPassword"
                 placeholder="Enter password"
+                autocomplete="off"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-form-type="other"
               />
             </div>
             <div class="form-group">
@@ -131,6 +90,10 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
                 type="password"
                 id="confirmPassword"
                 placeholder="Confirm password"
+                autocomplete="off"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-form-type="other"
               />
             </div>
           </div>
@@ -138,26 +101,29 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
 
         <!-- Page Rotation -->
         <div class="operation-card">
-          <h3>rotate</h3>
-          <div class="checkbox-group">
-            <input type="checkbox" id="enableRotation" />
-            <label for="enableRotation">Enable page rotation</label>
+          <div class="operation-header">
+            <h3>rotate</h3>
+            <input
+              type="checkbox"
+              id="enableRotation"
+              class="operation-checkbox"
+            />
           </div>
           <div id="rotationGroup" style="display: none">
             <div class="form-group">
-              <label for="rotationAngle">Rotation angle:</label>
+              <label for="rotationAngle">rotation angle:</label>
               <select id="rotationAngle">
-                <option value="90">90° (Clockwise)</option>
-                <option value="180">180° (Upside down)</option>
-                <option value="270">270° (Counter-clockwise)</option>
+                <option value="90">90° (clockwise)</option>
+                <option value="180">180° (upside down)</option>
+                <option value="270">270° (counter-clockwise)</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="rotationPages">Pages to rotate:</label>
+              <label for="rotationPages">pages to rotate:</label>
               <select id="rotationPages">
-                <option value="all">All pages</option>
-                <option value="landscape">Only landscape pages</option>
-                <option value="portrait">Only portrait pages</option>
+                <option value="all">all</option>
+                <option value="landscape">only landscape</option>
+                <option value="portrait">only portrait</option>
               </select>
             </div>
           </div>
@@ -165,25 +131,28 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
 
         <!-- Page Numbers -->
         <div class="operation-card">
-          <h3>page numbers</h3>
-          <div class="checkbox-group">
-            <input type="checkbox" id="enablePageNumbers" />
-            <label for="enablePageNumbers">Add page numbers</label>
+          <div class="operation-header">
+            <h3>page numbers</h3>
+            <input
+              type="checkbox"
+              id="enablePageNumbers"
+              class="operation-checkbox"
+            />
           </div>
           <div id="pageNumberGroup" style="display: none">
             <div class="form-group">
-              <label for="pageNumberPosition">Position:</label>
+              <label for="pageNumberPosition">position:</label>
               <select id="pageNumberPosition">
-                <option value="bottom-center">Bottom Center</option>
-                <option value="bottom-right">Bottom Right</option>
-                <option value="bottom-left">Bottom Left</option>
-                <option value="top-center">Top Center</option>
-                <option value="top-right">Top Right</option>
-                <option value="top-left">Top Left</option>
+                <option value="bottom-center">bottom center</option>
+                <option value="bottom-right">bottom right</option>
+                <option value="bottom-left">bottom left</option>
+                <option value="top-center">top center</option>
+                <option value="top-right">top right</option>
+                <option value="top-left">top left</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="pageNumberSize">Font size:</label>
+              <label for="pageNumberSize">font size:</label>
               <input
                 type="number"
                 id="pageNumberSize"
@@ -193,13 +162,13 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
               />
             </div>
             <div class="form-group">
-              <label for="startPage">Start numbering from:</label>
+              <label for="startPage">start numbering from:</label>
               <input type="number" id="startPage" value="1" min="1" />
             </div>
             <div class="checkbox-group">
               <input type="checkbox" id="keepNumbersAtBottom" />
               <label for="keepNumbersAtBottom"
-                >Keep page numbers at bottom after rotation</label
+                >keep page numbers at bottom after rotation</label
               >
             </div>
           </div>
@@ -207,38 +176,44 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
 
         <!-- PDF Merge -->
         <div class="operation-card">
-          <h3>merge</h3>
-          <div class="checkbox-group">
-            <input type="checkbox" id="enableMerge" />
-            <label for="enableMerge">Merge with other PDFs</label>
+          <div class="operation-header">
+            <h3>merge</h3>
+            <input
+              type="checkbox"
+              id="enableMerge"
+              class="operation-checkbox"
+            />
           </div>
           <div class="form-group" id="mergeGroup" style="display: none">
-            <label for="mergeFiles">Select PDFs to merge:</label>
+            <label for="mergeFiles">select pdfs to merge:</label>
             <input type="file" id="mergeFiles" accept=".pdf" multiple />
             <small style="color: #666; font-size: 12px">
-              Files will be merged in the order selected
+              files will be merged in the order selected
             </small>
           </div>
         </div>
 
         <!-- PDF Split -->
         <div class="operation-card">
-          <h3>split</h3>
-          <div class="checkbox-group">
-            <input type="checkbox" id="enableSplit" />
-            <label for="enableSplit">Split PDF</label>
+          <div class="operation-header">
+            <h3>split</h3>
+            <input
+              type="checkbox"
+              id="enableSplit"
+              class="operation-checkbox"
+            />
           </div>
           <div id="splitGroup" style="display: none">
             <div class="form-group">
-              <label for="splitType">Split method:</label>
+              <label for="splitType">split method:</label>
               <select id="splitType">
-                <option value="individual">Individual pages</option>
-                <option value="ranges">Custom ranges</option>
-                <option value="evenodd">Even/Odd pages</option>
+                <option value="individual">individual pages</option>
+                <option value="ranges">custom ranges</option>
+                <option value="evenodd">even/odd pages</option>
               </select>
             </div>
             <div class="form-group" id="splitRangesGroup" style="display: none">
-              <label for="splitRanges">Page ranges (e.g., 1-3, 5, 7-10):</label>
+              <label for="splitRanges">page ranges (e.g., 1-3, 5, 7-10):</label>
               <input type="text" id="splitRanges" placeholder="1-3, 5, 7-10" />
             </div>
           </div>
@@ -246,22 +221,25 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
 
         <!-- Watermark -->
         <div class="operation-card">
-          <h3>watermark</h3>
-          <div class="checkbox-group">
-            <input type="checkbox" id="enableWatermark" />
-            <label for="enableWatermark">Add watermark</label>
+          <div class="operation-header">
+            <h3>watermark</h3>
+            <input
+              type="checkbox"
+              id="enableWatermark"
+              class="operation-checkbox"
+            />
           </div>
           <div id="watermarkGroup" style="display: none">
             <div class="form-group">
-              <label for="watermarkType">Watermark type:</label>
+              <label for="watermarkType">watermark type:</label>
               <select id="watermarkType">
-                <option value="text">Text</option>
+                <option value="text">text</option>
                 <option value="image">Image</option>
               </select>
             </div>
             <div id="textWatermarkGroup">
               <div class="form-group">
-                <label for="watermarkText">Text:</label>
+                <label for="watermarkText">text:</label>
                 <input
                   type="text"
                   id="watermarkText"
@@ -269,7 +247,7 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
                 />
               </div>
               <div class="form-group">
-                <label for="watermarkFontSize">Font size:</label>
+                <label for="watermarkFontSize">font size:</label>
                 <input
                   type="number"
                   id="watermarkFontSize"
@@ -279,11 +257,11 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
                 />
               </div>
               <div class="form-group">
-                <label for="watermarkColor">Color:</label>
+                <label for="watermarkColor">color:</label>
                 <input type="color" id="watermarkColor" value="#cccccc" />
               </div>
               <div class="form-group">
-                <label for="watermarkRotation">Rotation (degrees):</label>
+                <label for="watermarkRotation">rotation (degrees):</label>
                 <input
                   type="number"
                   id="watermarkRotation"
@@ -295,7 +273,7 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
             </div>
             <div id="imageWatermarkGroup" style="display: none">
               <div class="form-group">
-                <label for="watermarkImage">Select image:</label>
+                <label for="watermarkImage">select image:</label>
                 <input
                   type="file"
                   id="watermarkImage"
@@ -303,7 +281,7 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
                 />
               </div>
               <div class="form-group">
-                <label for="watermarkImageScale">Scale (0.1 - 2.0):</label>
+                <label for="watermarkImageScale">scale (0.1 - 2.0):</label>
                 <input
                   type="number"
                   id="watermarkImageScale"
@@ -315,19 +293,19 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
               </div>
             </div>
             <div class="form-group">
-              <label for="watermarkPosition">Position:</label>
+              <label for="watermarkPosition">position:</label>
               <select id="watermarkPosition">
-                <option value="center">Center</option>
-                <option value="top-left">Top Left</option>
-                <option value="top-right">Top Right</option>
-                <option value="bottom-left">Bottom Left</option>
-                <option value="bottom-right">Bottom Right</option>
-                <option value="top-center">Top Center</option>
-                <option value="bottom-center">Bottom Center</option>
+                <option value="center">center</option>
+                <option value="top-left">top left</option>
+                <option value="top-right">top right</option>
+                <option value="bottom-left">bottom left</option>
+                <option value="bottom-right">bottom right</option>
+                <option value="top-center">top center</option>
+                <option value="bottom-center">bottom center</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="watermarkOpacity">Opacity (0.1 - 1.0):</label>
+              <label for="watermarkOpacity">opacity (0.1 - 1.0):</label>
               <input
                 type="number"
                 id="watermarkOpacity"
@@ -342,27 +320,30 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
 
         <!-- Compression -->
         <div class="operation-card">
-          <h3>compress</h3>
-          <div class="checkbox-group">
-            <input type="checkbox" id="enableCompression" />
-            <label for="enableCompression">Compress PDF</label>
+          <div class="operation-header">
+            <h3>compress</h3>
+            <input
+              type="checkbox"
+              id="enableCompression"
+              class="operation-checkbox"
+            />
           </div>
           <div id="compressionGroup" style="display: none">
             <div class="form-group">
-              <label for="compressionLevel">Compression level:</label>
+              <label for="compressionLevel">compression level:</label>
               <select id="compressionLevel">
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
               </select>
             </div>
             <div class="checkbox-group">
               <input type="checkbox" id="removeMetadata" checked />
-              <label for="removeMetadata">Remove metadata</label>
+              <label for="removeMetadata">remove metadata</label>
             </div>
             <div class="checkbox-group">
               <input type="checkbox" id="optimizeImages" />
-              <label for="optimizeImages">Optimize images</label>
+              <label for="optimizeImages">optimize images</label>
             </div>
           </div>
         </div>
@@ -372,14 +353,14 @@ window.encrypt_pdf_with_password = encrypt_pdf_with_password
       </div>
 
       <button class="process-btn" id="processBtn" style="display: none">
-        Process
+        process
       </button>
 
       <div class="download-section" id="downloadSection" style="display: none">
-        <button class="download-btn" id="downloadBtn">Download</button>
+        <button class="download-btn" id="downloadBtn">download</button>
         <div id="splitDownloadSection" style="display: none; margin-top: 15px">
           <p style="margin-bottom: 10px; color: #666">
-            Split files ready for download:
+            split files ready for download:
           </p>
           <div id="splitDownloadLinks"></div>
         </div>
