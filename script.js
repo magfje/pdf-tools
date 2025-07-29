@@ -6,6 +6,7 @@ import {
   isPasswordEnabled,
 } from "./tools/password.js";
 import { applyRotations, isRotationEnabled } from "./tools/rotation.js";
+import { isScalingEnabled, scaleToA4 } from "./tools/scale.js";
 import { isSplitEnabled, splitPDF } from "./tools/split.js";
 import { addWatermark, isWatermarkEnabled } from "./tools/watermark.js";
 
@@ -26,6 +27,50 @@ fileInput.addEventListener("change", handleFileSelect);
 chooseFileBtn.addEventListener("click", () => fileInput.click());
 processBtn.addEventListener("click", processPDF);
 downloadBtn.addEventListener("click", downloadPDF);
+
+// Theme switcher
+const themeSwitcher = document.getElementById("themeSwitcher");
+const themes = [
+  "theme-cyberpunk",
+  "theme-powershell",
+  "theme-ocean",
+  "theme-sunset",
+  "theme-forest",
+  "theme-midnight",
+  "theme-aurora",
+];
+
+// Load saved theme from localStorage or default to forest (index 4)
+let currentThemeIndex =
+  parseInt(localStorage.getItem("selectedThemeIndex")) || 1;
+
+// Initialize theme
+document.body.classList.add(themes[currentThemeIndex]);
+
+themeSwitcher.addEventListener("click", () => {
+  // Remove current theme
+  document.body.classList.remove(themes[currentThemeIndex]);
+
+  // Select random theme (different from current)
+  let newIndex;
+  do {
+    newIndex = Math.floor(Math.random() * themes.length);
+  } while (newIndex === currentThemeIndex && themes.length > 1);
+
+  currentThemeIndex = newIndex;
+
+  // Apply new theme
+  document.body.classList.add(themes[currentThemeIndex]);
+
+  // Save selected theme to localStorage
+  localStorage.setItem("selectedThemeIndex", currentThemeIndex.toString());
+
+  // Add a subtle animation effect
+  themeSwitcher.style.transform = "scale(0.95)";
+  setTimeout(() => {
+    themeSwitcher.style.transform = "scale(1)";
+  }, 100);
+});
 
 // Drag and drop
 uploadSection.addEventListener("dragover", (e) => {
@@ -92,6 +137,14 @@ document
       : "none";
   });
 
+document
+  .getElementById("enableScaling")
+  .addEventListener("change", function () {
+    document.getElementById("scalingGroup").style.display = this.checked
+      ? "block"
+      : "none";
+  });
+
 // Split type handler
 document.getElementById("splitType").addEventListener("change", function () {
   const rangesGroup = document.getElementById("splitRangesGroup");
@@ -114,6 +167,129 @@ document
     }
   });
 
+// Helper function to get page size information
+function getPageSizeInfo(pdfDoc) {
+  const pages = pdfDoc.getPages();
+  const pageCount = pages.length;
+
+  if (pageCount === 0) return "No pages";
+
+  // Get dimensions of first page
+  const firstPage = pages[0];
+  const { width: firstWidth, height: firstHeight } = firstPage.getSize();
+  const firstIsLandscape = firstWidth > firstHeight;
+
+  // Check if all pages have the same size
+  let allSameSize = true;
+  let minWidth = firstWidth,
+    maxWidth = firstWidth;
+  let minHeight = firstHeight,
+    maxHeight = firstHeight;
+
+  for (let i = 1; i < pages.length; i++) {
+    const { width, height } = pages[i].getSize();
+    if (width !== firstWidth || height !== firstHeight) {
+      allSameSize = false;
+    }
+    minWidth = Math.min(minWidth, width);
+    maxWidth = Math.max(maxWidth, width);
+    minHeight = Math.min(minHeight, height);
+    maxHeight = Math.max(maxHeight, height);
+  }
+
+  // Convert points to mm (1 point = 0.3528 mm)
+  const pointsToMm = (points) => (points * 0.3528).toFixed(1);
+
+  // Detect common paper sizes (tolerance of ±2mm)
+  function detectPaperSize(width, height) {
+    const tolerance = 2; // mm
+
+    // A4: 210 × 297 mm
+    if (
+      Math.abs(width - 210) <= tolerance &&
+      Math.abs(height - 297) <= tolerance
+    )
+      return "A4";
+    if (
+      Math.abs(width - 297) <= tolerance &&
+      Math.abs(height - 210) <= tolerance
+    )
+      return "A4 (landscape)";
+
+    // Letter: 216 × 279 mm
+    if (
+      Math.abs(width - 216) <= tolerance &&
+      Math.abs(height - 279) <= tolerance
+    )
+      return "Letter";
+    if (
+      Math.abs(width - 279) <= tolerance &&
+      Math.abs(height - 216) <= tolerance
+    )
+      return "Letter (landscape)";
+
+    // Legal: 216 × 356 mm
+    if (
+      Math.abs(width - 216) <= tolerance &&
+      Math.abs(height - 356) <= tolerance
+    )
+      return "Legal";
+    if (
+      Math.abs(width - 356) <= tolerance &&
+      Math.abs(height - 216) <= tolerance
+    )
+      return "Legal (landscape)";
+
+    // A3: 297 × 420 mm
+    if (
+      Math.abs(width - 297) <= tolerance &&
+      Math.abs(height - 420) <= tolerance
+    )
+      return "A3";
+    if (
+      Math.abs(width - 420) <= tolerance &&
+      Math.abs(height - 297) <= tolerance
+    )
+      return "A3 (landscape)";
+
+    // A5: 148 × 210 mm
+    if (
+      Math.abs(width - 148) <= tolerance &&
+      Math.abs(height - 210) <= tolerance
+    )
+      return "A5";
+    if (
+      Math.abs(width - 210) <= tolerance &&
+      Math.abs(height - 148) <= tolerance
+    )
+      return "A5 (landscape)";
+
+    return null;
+  }
+
+  if (allSameSize) {
+    const widthMm = pointsToMm(firstWidth);
+    const heightMm = pointsToMm(firstHeight);
+    const orientation = firstIsLandscape ? "landscape" : "portrait";
+    const paperSize = detectPaperSize(
+      parseFloat(widthMm),
+      parseFloat(heightMm)
+    );
+
+    if (paperSize) {
+      return `${paperSize} (${widthMm} × ${heightMm} mm)`;
+    } else {
+      return `${widthMm} × ${heightMm} mm (${orientation})`;
+    }
+  } else {
+    const minWidthMm = pointsToMm(minWidth);
+    const maxWidthMm = pointsToMm(maxWidth);
+    const minHeightMm = pointsToMm(minHeight);
+    const maxHeightMm = pointsToMm(maxHeight);
+    return `various sizes (${minWidthMm}-${maxWidthMm} × ${minHeightMm}-${maxHeightMm} mm)`;
+  }
+}
+
 async function handleFileSelect() {
   const file = fileInput.files[0];
   if (!file) return;
@@ -126,13 +302,16 @@ async function handleFileSelect() {
     originalPdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
 
     const pageCount = originalPdfDoc.getPageCount();
+    const pageSizeInfo = getPageSizeInfo(originalPdfDoc);
+
     document.getElementById("fileInfo").innerHTML = `
                 <div class="file-info">
                     <strong>File:</strong> ${file.name}<br>
                     <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(
                       2
                     )} MB<br>
-                    <strong>Pages:</strong> ${pageCount}
+                    <strong>Pages:</strong> ${pageCount}<br>
+                    <strong>Page Size:</strong> ${pageSizeInfo}
                 </div>
             `;
 
@@ -160,6 +339,7 @@ async function processPDF() {
   const enableSplit = isSplitEnabled();
   const enableWatermark = isWatermarkEnabled();
   const enableCompression = isCompressionEnabled();
+  const enableScaling = isScalingEnabled();
 
   if (
     !enableRotation &&
@@ -168,7 +348,8 @@ async function processPDF() {
     !enableMerge &&
     !enableSplit &&
     !enableWatermark &&
-    !enableCompression
+    !enableCompression &&
+    !enableScaling
   ) {
     showStatus("Please select at least one operation to perform.", "error");
     return;
@@ -218,7 +399,8 @@ async function processPDF() {
           enableRotation,
           enablePageNumbers,
           enableWatermark,
-          enableCompression
+          enableCompression,
+          enableScaling
         );
 
         // Apply password protection to each split result
@@ -239,7 +421,8 @@ async function processPDF() {
         enableRotation,
         enablePageNumbers,
         enableWatermark,
-        enableCompression
+        enableCompression,
+        enableScaling
       );
 
       // 4. Apply compression
@@ -276,12 +459,18 @@ async function applyOperationsToDocument(
   enableRotation,
   enablePageNumbers,
   enableWatermark,
-  enableCompression
+  enableCompression,
+  enableScaling
 ) {
   // Check if we should keep page numbers at bottom after rotation
   const keepNumbersAtBottom = document.getElementById(
     "keepNumbersAtBottom"
   ).checked;
+
+  // Apply scaling first (before other operations)
+  if (enableScaling) {
+    scaleToA4(pdfDoc);
+  }
 
   // Apply operations in the correct order
   if (enableRotation && enablePageNumbers && keepNumbersAtBottom) {

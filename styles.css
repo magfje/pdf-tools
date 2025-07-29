@@ -2,16 +2,17 @@
 
 :root {
   /* Colors */
-  --primary-bg: #1830d9;
-  --primary-text: #f9fefb;
-  --success-color: #4ade80;
-  --error-color: #f87171;
-  --processing-color: #60a5fa;
+  --primary-bg: #000000;
+  --primary-text: #000000;
+  --accent-color: #000000;
+  --success-color: #000000;
+  --error-color: #000000;
+  --processing-color: #000000;
   --transparent: transparent;
-  --hover-overlay: rgba(249, 254, 251, 0.1);
-  --hover-overlay-light: rgba(249, 254, 251, 0.05);
-  --placeholder-color: rgba(249, 254, 251, 0.6);
-  --muted-text: rgba(249, 254, 251, 0.7);
+  --hover-overlay: #000000;
+  --hover-overlay-light: #000000;
+  --placeholder-color: #000000;
+  --muted-text: #000000;
 
   /* Spacing */
   --spacing-xs: 8px;
@@ -24,9 +25,7 @@
   --spacing-4xl: 55px;
 
   /* Borders */
-  --border-width: 1px;
-  --border-dashed: 1px dashed var(--primary-text);
-  --border-solid: 1px solid var(--primary-text);
+  --border-width: 0.5px;
 
   /* Typography */
   --font-family: "JetBrains Mono", monospace;
@@ -45,6 +44,135 @@
   --glow-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
 }
 
+/* Theme Definitions */
+.theme-cyberpunk {
+  --primary-bg: #0a0a0a;
+  --primary-text: #00ff41;
+  --accent-color: #00ff41;
+  --success-color: #00ff41;
+  --error-color: #00ff41;
+  --processing-color: #00ff41;
+  --hover-overlay: rgba(0, 255, 65, 0.1);
+  --hover-overlay-light: rgba(0, 255, 65, 0.05);
+  --placeholder-color: rgba(0, 255, 65, 0.6);
+  --muted-text: rgba(0, 255, 65, 0.7);
+  --border-dashed: 0.5px dashed #00ff41;
+  --border-solid: 0.5px solid #00ff41;
+}
+.theme-powershell {
+  --primary-bg: #1830d9;
+  --primary-text: #f9fefb;
+  --accent-color: #f9fefb;
+  --success-color: #f9fefb;
+  --error-color: #f9fefb;
+  --processing-color: #f9fefb;
+  --hover-overlay: rgba(249, 254, 251, 0.1);
+  --hover-overlay-light: rgba(249, 254, 251, 0.05);
+  --placeholder-color: rgba(249, 254, 251, 0.6);
+  --muted-text: rgba(249, 254, 251, 0.7);
+  --border-dashed: 0.5px dashed #f9fefb;
+  --border-solid: 0.5px solid #f9fefb;
+}
+
+.theme-ocean {
+  --primary-bg: #0f1419;
+  --primary-text: #64b5f6;
+  --accent-color: #64b5f6;
+  --success-color: #64b5f6;
+  --error-color: #64b5f6;
+  --processing-color: #64b5f6;
+  --hover-overlay: rgba(100, 181, 246, 0.1);
+  --hover-overlay-light: rgba(100, 181, 246, 0.05);
+  --placeholder-color: rgba(100, 181, 246, 0.6);
+  --muted-text: rgba(100, 181, 246, 0.7);
+  --border-dashed: 0.5px dashed #64b5f6;
+  --border-solid: 0.5px solid #64b5f6;
+}
+
+.theme-sunset {
+  --primary-bg: #2d1b69;
+  --primary-text: #ff6b6b;
+  --accent-color: #ff6b6b;
+  --success-color: #ff6b6b;
+  --error-color: #ff6b6b;
+  --processing-color: #ff6b6b;
+  --hover-overlay: rgba(255, 107, 107, 0.1);
+  --hover-overlay-light: rgba(255, 107, 107, 0.05);
+  --placeholder-color: rgba(255, 107, 107, 0.6);
+  --muted-text: rgba(255, 107, 107, 0.7);
+  --border-dashed: 0.5px dashed #ff6b6b;
+  --border-solid: 0.5px solid #ff6b6b;
+}
+
+.theme-forest {
+  --primary-bg: #1b2e1b;
+  --primary-text: #58d68d;
+  --accent-color: #58d68d;
+  --success-color: #58d68d;
+  --error-color: #58d68d;
+  --processing-color: #58d68d;
+  --hover-overlay: rgba(88, 214, 141, 0.1);
+  --hover-overlay-light: rgba(88, 214, 141, 0.05);
+  --placeholder-color: rgba(88, 214, 141, 0.6);
+  --muted-text: rgba(88, 214, 141, 0.7);
+  --border-dashed: 0.5px dashed #58d68d;
+  --border-solid: 0.5px solid #58d68d;
+}
+
+.theme-midnight {
+  --primary-bg: #1a1a2e;
+  --primary-text: #e94560;
+  --accent-color: #e94560;
+  --success-color: #e94560;
+  --error-color: #e94560;
+  --processing-color: #e94560;
+  --hover-overlay: rgba(233, 69, 96, 0.1);
+  --hover-overlay-light: rgba(233, 69, 96, 0.05);
+  --placeholder-color: rgba(233, 69, 96, 0.6);
+  --muted-text: rgba(233, 69, 96, 0.7);
+  --border-dashed: 0.5px dashed #e94560;
+  --border-solid: 0.5px solid #e94560;
+}
+
+.theme-aurora {
+  --primary-bg: #0f0f23;
+  --primary-text: #00d4aa;
+  --accent-color: #00d4aa;
+  --success-color: #00d4aa;
+  --error-color: #00d4aa;
+  --processing-color: #00d4aa;
+  --hover-overlay: rgba(0, 212, 170, 0.1);
+  --hover-overlay-light: rgba(0, 212, 170, 0.05);
+  --placeholder-color: rgba(0, 212, 170, 0.6);
+  --muted-text: rgba(0, 212, 170, 0.7);
+  --border-dashed: 0.5px dashed #00d4aa;
+  --border-solid: 0.5px solid #00d4aa;
+}
+
+/* Theme Switcher Button */
+.theme-switcher {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--primary-text);
+  color: var(--primary-bg);
+  border: var(--border-solid);
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition: var(--transition-fast);
+  z-index: 1000;
+  text-transform: lowercase;
+}
+
+.theme-switcher:hover {
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  transform: scale(1.05);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -58,6 +186,7 @@ body {
   min-height: 100vh;
   line-height: 1.6;
   text-transform: lowercase;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .container {
@@ -65,6 +194,7 @@ body {
   padding: var(--spacing-lg);
   padding-top: 0px;
   min-height: 100vh;
+  transition: background-color 0.3s ease;
 }
 
 h1 {
@@ -151,7 +281,8 @@ h3 {
   cursor: pointer;
   font-size: var(--font-size-md);
   font-weight: 600;
-  transition: var(--transition-fast);
+  transition: var(--transition-fast), background-color 0.3s ease,
+    color 0.3s ease, border-color 0.3s ease;
 }
 
 .upload-btn:hover {
@@ -321,7 +452,8 @@ input[type="file"]:hover {
   font-size: var(--font-size-lg);
   font-weight: 600;
   width: 100%;
-  transition: var(--transition-fast);
+  transition: var(--transition-fast), background-color 0.3s ease,
+    color 0.3s ease, border-color 0.3s ease;
   margin-top: var(--spacing-xs);
 }
 
@@ -338,7 +470,7 @@ input[type="file"]:hover {
 .status {
   font-family: var(--font-family);
   /* Neon glow based on color */
-  text-shadow: var(--glow-shadow);
+  /* text-shadow: var(--glow-shadow); */
   text-align: center;
   padding: var(--spacing-md) var(--spacing-xl);
   margin-bottom: var(--spacing-xs);
@@ -371,6 +503,7 @@ input[type="file"]:hover {
   padding: var(--spacing-4xl);
   border: var(--border-dashed);
   color: var(--primary-text);
+  height: 100%;
 }
 
 .download-section {
@@ -387,7 +520,8 @@ input[type="file"]:hover {
   cursor: pointer;
   font-size: var(--font-size-lg);
   font-weight: 600;
-  transition: var(--transition-fast);
+  transition: var(--transition-fast), background-color 0.3s ease,
+    color 0.3s ease, border-color 0.3s ease;
   /* margin: 5px; */
   width: 100%;
 }
@@ -645,4 +779,16 @@ select * {
   .upload-section {
     padding: 30px 15px;
   }
+
+  /* .file-info-section {
+    display: none;
+    font-family: var(--font-family);
+    background: var(--transparent);
+    padding: var(--spacing-4xl);
+    border: var(--border-dashed);
+    color: var(--primary-text);
+  }
+  .file-info-section:has(:not(:empty)) {
+    display: block;
+  } */
 }

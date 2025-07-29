@@ -41,6 +41,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <button class="theme-switcher" id="themeSwitcher">theme</button>
     <div class="container">
       <div class="title-container">
         <h1 class="title">pdftools<span class="underscore">_</span></h1>
@@ -55,7 +56,7 @@
           <button class="upload-btn" id="chooseFileBtn">click</button>
           <input type="file" id="fileInput" accept=".pdf" />
         </div>
-        <div id="fileInfo"></div>
+        <div class="file-info-section" id="fileInfo"></div>
       </div>
       <div id="status"></div>
 
@@ -124,6 +125,28 @@
                 <option value="all">all</option>
                 <option value="landscape">only landscape</option>
                 <option value="portrait">only portrait</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- A4 Scaling -->
+        <div class="operation-card">
+          <div class="operation-header">
+            <h3>scale to a4</h3>
+            <input
+              type="checkbox"
+              id="enableScaling"
+              class="operation-checkbox"
+            />
+          </div>
+          <div id="scalingGroup" style="display: none">
+            <div class="form-group">
+              <label for="scalingMode">scaling mode:</label>
+              <select id="scalingMode">
+                <option value="fit">fit to a4 (maintain aspect ratio)</option>
+                <option value="stretch">stretch to a4 (may distort)</option>
+                <option value="smart">smart (portrait/landscape aware)</option>
               </select>
             </div>
           </div>
@@ -347,9 +370,9 @@
             </div>
           </div>
         </div>
-        <div class="operation-card">
+        <!-- <div class="operation-card">
           <h3>more tools?</h3>
-        </div>
+        </div> -->
       </div>
 
       <button class="process-btn" id="processBtn" style="display: none">
