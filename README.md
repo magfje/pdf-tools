@@ -45,9 +45,18 @@ ui/              DOM helpers: file list, reading settings, canvas image encoder
 tools/           the PDF tools. Plain functions (pdfDoc, options) with no DOM access
   pipeline.js    runs the enabled tools in order
   geometry.js    "as displayed" page geometry shared by the tools
-tests/           node:test unit tests for tools/
+tests/           node:test unit tests
+scripts/         stamp-version.mjs (cache busting, used by the deploy)
 vendor/          pdf-lib-with-encrypt and JSZip (see vendor/README.md)
 ```
+
+### Deploying
+
+Pushing to `main` runs `.github/workflows/pages.yml`: it runs the tests,
+copies the site, adds `?v=<commit>` to every local JS/CSS URL and deploys to
+GitHub Pages. Pages caches JS/CSS for 4 hours, so without the version a
+browser could mix files from two deploys. The repository's Pages source must
+be set to **GitHub Actions**.
 
 ## License
 
