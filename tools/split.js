@@ -1,108 +1,63 @@
-export async function splitPDF(pdfDoc, splitOption) {
-  const splitType = document.getElementById("splitType").value;
-  const splitPages = pdfDoc.getPages();
-  const splitResults = [];
+import { PDFDocument } from "./pdflib.js";
+import { parsePageRanges } from "./ranges.js";
 
-  switch (splitType) {
+/**
+ * Split a document into parts. Returns [{ name, pdf }].
+ *  - "individual": one file per page
+ *  - "ranges":     one file per range in `ranges` (e.g. "1-3, 4-")
+ *  - "every":      chunks of `every` pages
+ *  - "evenodd":    odd pages and even pages
+ */
+export async function splitPDF(pdfDoc, { type, ranges = "", every = 1 }) {
+  const count = pdfDoc.getPageCount();
+  const groups = []; // { name, indices }
+
+  switch (type) {
     case "individual":
-      // Split into individual pages
-      for (let i = 0; i < splitPages.length; i++) {
-        const newPdf = await PDFLib.PDFDocument.create();
-        const [copiedPage] = await newPdf.copyPages(pdfDoc, [i]);
-        newPdf.addPage(copiedPage);
-        splitResults.push({
-          pdf: newPdf,
-          name: `page_${i + 1}`,
-        });
-      }
+      for (let i = 0; i < count; i++) groups.push({ name: `page_${i + 1}`, indices: [i] });
       break;
 
     case "ranges":
-      // Split by custom ranges
-      const ranges = parseSplitRanges(
-        document.getElementById("splitRanges").value
-      );
-      for (const range of ranges) {
-        const newPdf = await PDFLib.PDFDocument.create();
-        const pageIndices = [];
-
-        for (let i = range.start - 1; i < range.end; i++) {
-          if (i < splitPages.length) {
-            pageIndices.push(i);
-          }
-        }
-
-        if (pageIndices.length > 0) {
-          const copiedPages = await newPdf.copyPages(pdfDoc, pageIndices);
-          copiedPages.forEach((page) => newPdf.addPage(page));
-          splitResults.push({
-            pdf: newPdf,
-            name: `pages_${range.start}_to_${range.end}`,
-          });
-        }
-      }
-      break;
-
-    case "evenodd":
-      // Split into even and odd pages
-      const evenPages = [];
-      const oddPages = [];
-
-      for (let i = 0; i < splitPages.length; i++) {
-        if ((i + 1) % 2 === 0) {
-          evenPages.push(i);
-        } else {
-          oddPages.push(i);
-        }
-      }
-
-      if (oddPages.length > 0) {
-        const oddPdf = await PDFLib.PDFDocument.create();
-        const copiedOddPages = await oddPdf.copyPages(pdfDoc, oddPages);
-        copiedOddPages.forEach((page) => oddPdf.addPage(page));
-        splitResults.push({
-          pdf: oddPdf,
-          name: "odd_pages",
-        });
-      }
-
-      if (evenPages.length > 0) {
-        const evenPdf = await PDFLib.PDFDocument.create();
-        const copiedEvenPages = await evenPdf.copyPages(pdfDoc, evenPages);
-        copiedEvenPages.forEach((page) => evenPdf.addPage(page));
-        splitResults.push({
-          pdf: evenPdf,
-          name: "even_pages",
+      for (const { start, end } of parsePageRanges(ranges, count)) {
+        groups.push({
+          name: start === end ? `page_${start}` : `pages_${start}-${end}`,
+          indices: Array.from({ length: end - start + 1 }, (_, k) => start - 1 + k),
         });
       }
       break;
-  }
 
-  return splitResults;
-}
-
-function parseSplitRanges(rangeString) {
-  const ranges = [];
-  const parts = rangeString.split(",");
-
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (trimmed.includes("-")) {
-      const [start, end] = trimmed.split("-").map((n) => parseInt(n.trim()));
-      if (start && end && start <= end) {
-        ranges.push({ start, end });
+    case "every": {
+      const size = Math.floor(Number(every));
+      if (!(size >= 1)) throw new Error("split: pages per file must be 1 or more");
+      for (let s = 0; s < count; s += size) {
+        const e = Math.min(s + size, count);
+        groups.push({
+          name: e - s === 1 ? `page_${s + 1}` : `pages_${s + 1}-${e}`,
+          indices: Array.from({ length: e - s }, (_, k) => s + k),
+        });
       }
-    } else {
-      const page = parseInt(trimmed);
-      if (page) {
-        ranges.push({ start: page, end: page });
-      }
+      break;
     }
+
+    case "evenodd": {
+      const all = [...Array(count).keys()];
+      const odd = all.filter((i) => i % 2 === 0);
+      const even = all.filter((i) => i % 2 === 1);
+      if (odd.length) groups.push({ name: "odd_pages", indices: odd });
+      if (even.length) groups.push({ name: "even_pages", indices: even });
+      break;
+    }
+
+    default:
+      throw new Error(`unknown split type "${type}"`);
   }
 
-  return ranges;
-}
-
-export function isSplitEnabled() {
-  return document.getElementById("enableSplit").checked;
+  const parts = [];
+  for (const { name, indices } of groups) {
+    const part = await PDFDocument.create({ updateMetadata: false });
+    const pages = await part.copyPages(pdfDoc, indices);
+    pages.forEach((p) => part.addPage(p));
+    parts.push({ name, pdf: part });
+  }
+  return parts;
 }

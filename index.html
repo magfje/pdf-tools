@@ -4,44 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pdftools</title>
-    <script>
-      // Debug logging
-      console.log("Loading PDF libraries...");
-
-      // Try to load pdf-lib-with-encrypt from the correct CDN
-      const script = document.createElement("script");
-      script.src =
-        "https://unpkg.com/pdf-lib-with-encrypt@1.2.1/dist/pdf-lib.min.js";
-      script.onload = function () {
-        console.log("pdf-lib-with-encrypt loaded successfully");
-        console.log("PDFLib available:", typeof PDFLib !== "undefined");
-        if (typeof PDFLib !== "undefined") {
-          console.log("PDFLib methods:", Object.keys(PDFLib));
-        }
-      };
-      script.onerror = function () {
-        console.error(
-          "Failed to load pdf-lib-with-encrypt, falling back to regular pdf-lib"
-        );
-        // Fallback to regular pdf-lib
-        const fallbackScript = document.createElement("script");
-        fallbackScript.src =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
-        fallbackScript.onload = function () {
-          console.log("Regular pdf-lib loaded as fallback");
-          console.log("PDFLib available:", typeof PDFLib !== "undefined");
-        };
-        document.head.appendChild(fallbackScript);
-      };
-      document.head.appendChild(script);
-    </script>
-
-    <!-- PyScript will be loaded dynamically when needed -->
-
+    <meta
+      name="description"
+      content="Merge, split, rotate, scale, number, watermark, compress and password-protect PDFs. Everything runs in your browser."
+    />
+    <link rel="icon" href="favicon.ico" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <button class="theme-switcher" id="themeSwitcher">theme</button>
+    <button class="theme-switcher" id="themeSwitcher" type="button">theme</button>
     <div class="container">
       <div class="title-container">
         <h1 class="title">pdftools<span class="underscore">_</span></h1>
@@ -50,77 +21,62 @@
 
       <div class="upload-section-container">
         <div class="upload-section" id="uploadSection">
-          <p style="margin-bottom: 20px; font-size: 18px">
-            drop your pdf file(s) here or click to browse
-          </p>
-          <button class="upload-btn" id="chooseFileBtn">click</button>
-          <input type="file" id="fileInput" accept=".pdf" multiple />
+          <p class="upload-text">drop pdf file(s) anywhere or click to browse</p>
+          <button class="upload-btn" id="chooseFileBtn" type="button">click</button>
+          <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple hidden />
+          <small class="upload-note">files never leave your device</small>
         </div>
-        <div class="file-info-section" id="fileInfo"></div>
+        <div class="file-info-section" id="fileInfo" hidden></div>
       </div>
-      <div id="status"></div>
+      <div id="status" role="status" aria-live="polite"></div>
 
-      <div class="operations-grid" id="operationsGrid" style="display: none">
-        <!-- Password Protection -->
-        <div class="operation-card">
-          <div class="operation-header">
-            <h3>password</h3>
-            <input
-              type="checkbox"
-              id="enablePassword"
-              class="operation-checkbox"
-            />
+      <div class="operations-grid" id="operationsGrid" hidden>
+        <!-- Merge -->
+        <div class="operation-card" id="mergeCard" data-tool="merge">
+          <label class="operation-header">
+            <span class="operation-title">merge</span>
+            <input type="checkbox" id="enableMerge" class="operation-checkbox" />
+          </label>
+          <div class="operation-body merge-group" id="mergeGroup" hidden>
+            <ol class="merge-list" id="mergeList"></ol>
+            <button type="button" class="small-btn" id="mergeAddBtn">+ add pdfs</button>
+            <input type="file" id="mergeFiles" accept=".pdf,application/pdf" multiple hidden />
+            <small id="mergeSummary"></small>
+            <small>drop pdfs here · drag rows or use ↑ ↓ to reorder</small>
           </div>
+        </div>
 
-          <div id="passwordGroup" style="display: none">
+        <!-- Remove pages -->
+        <div class="operation-card" data-tool="removePages">
+          <label class="operation-header">
+            <span class="operation-title">remove pages</span>
+            <input type="checkbox" id="enableRemovePages" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
             <div class="form-group">
-              <label for="pdfPassword">password:</label>
-              <input
-                type="password"
-                id="pdfPassword"
-                placeholder="Enter password"
-                autocomplete="off"
-                data-1p-ignore="true"
-                data-lpignore="true"
-                data-form-type="other"
-              />
-            </div>
-            <div class="form-group">
-              <label for="confirmPassword">confirm password:</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                placeholder="Confirm password"
-                autocomplete="off"
-                data-1p-ignore="true"
-                data-lpignore="true"
-                data-form-type="other"
-              />
+              <label for="removeRanges">pages:</label>
+              <input type="text" id="removeRanges" placeholder="e.g. 1, 4-6" autocomplete="off" />
             </div>
           </div>
         </div>
 
-        <!-- Page Rotation -->
-        <div class="operation-card">
-          <div class="operation-header">
-            <h3>rotate</h3>
-            <input
-              type="checkbox"
-              id="enableRotation"
-              class="operation-checkbox"
-            />
-          </div>
-          <div id="rotationGroup" style="display: none">
+        <!-- Rotate -->
+        <div class="operation-card" data-tool="rotate">
+          <label class="operation-header">
+            <span class="operation-title">rotate</span>
+            <input type="checkbox" id="enableRotation" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
             <div class="form-group">
-              <label for="rotationAngle">rotation angle:</label>
+              <label for="rotationAngle">angle:</label>
               <select id="rotationAngle">
-                <option value="90">90° (clockwise)</option>
-                <option value="180">180° (upside down)</option>
-                <option value="270">270° (counter-clockwise)</option>
+                <option value="90">90° clockwise</option>
+                <option value="180">180°</option>
+                <option value="270">90° counter-cw</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="rotationPages">pages to rotate:</label>
+              <label for="rotationPages">pages:</label>
               <select id="rotationPages">
                 <option value="all">all</option>
                 <option value="landscape">only landscape</option>
@@ -130,39 +86,58 @@
           </div>
         </div>
 
-        <!-- A4 Scaling -->
-        <div class="operation-card">
-          <div class="operation-header">
-            <h3>scale to a4</h3>
-            <input
-              type="checkbox"
-              id="enableScaling"
-              class="operation-checkbox"
-            />
-          </div>
-          <div id="scalingGroup" style="display: none">
+        <!-- Scale to A4 -->
+        <div class="operation-card" data-tool="scale">
+          <label class="operation-header">
+            <span class="operation-title">scale to a4</span>
+            <input type="checkbox" id="enableScaling" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
             <div class="form-group">
-              <label for="scalingMode">scaling mode:</label>
+              <label for="scalingMode">mode:</label>
               <select id="scalingMode">
-                <option value="fit">fit to a4 (maintain aspect ratio)</option>
-                <option value="stretch">stretch to a4 (may distort)</option>
-                <option value="smart">smart (portrait/landscape aware)</option>
+                <option value="smart">fit, same orientation</option>
+                <option value="fit">fit, portrait</option>
+                <option value="stretch">stretch (distorts)</option>
               </select>
             </div>
+            <small>runs after rotate, so rotated pages are scaled the right way</small>
           </div>
         </div>
 
-        <!-- Page Numbers -->
-        <div class="operation-card">
-          <div class="operation-header">
-            <h3>page numbers</h3>
-            <input
-              type="checkbox"
-              id="enablePageNumbers"
-              class="operation-checkbox"
-            />
+        <!-- Margins -->
+        <div class="operation-card" data-tool="margins">
+          <label class="operation-header">
+            <span class="operation-title">margins</span>
+            <input type="checkbox" id="enableMargins" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
+            <div class="form-group">
+              <label for="marginAll">margin (mm):</label>
+              <input type="number" id="marginAll" value="15" min="0" max="100" step="1" />
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="marginSeparate" />
+              <label for="marginSeparate">set each side</label>
+            </div>
+            <div class="margin-sides" id="marginSides" hidden>
+              <label>top <input type="number" id="marginTop" value="15" min="0" max="100" /></label>
+              <label>right <input type="number" id="marginRight" value="15" min="0" max="100" /></label>
+              <label>bottom <input type="number" id="marginBottom" value="15" min="0" max="100" /></label>
+              <label>left <input type="number" id="marginLeft" value="15" min="0" max="100" /></label>
+            </div>
+            <small>shrinks content to leave blank space around it</small>
+            <button type="button" class="small-btn" id="digipostPreset">digipost letter preset</button>
           </div>
-          <div id="pageNumberGroup" style="display: none">
+        </div>
+
+        <!-- Page numbers -->
+        <div class="operation-card" data-tool="pageNumbers">
+          <label class="operation-header">
+            <span class="operation-title">page numbers</span>
+            <input type="checkbox" id="enablePageNumbers" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
             <div class="form-group">
               <label for="pageNumberPosition">position:</label>
               <select id="pageNumberPosition">
@@ -175,226 +150,209 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="pageNumberSize">font size:</label>
-              <input
-                type="number"
-                id="pageNumberSize"
-                value="12"
-                min="8"
-                max="24"
-              />
-            </div>
-            <div class="form-group">
-              <label for="startPage">start numbering from:</label>
-              <input type="number" id="startPage" value="1" min="1" />
-            </div>
-            <div class="checkbox-group">
-              <input type="checkbox" id="keepNumbersAtBottom" />
-              <label for="keepNumbersAtBottom"
-                >keep page numbers at bottom after rotation</label
-              >
-            </div>
-          </div>
-        </div>
-
-        <!-- PDF Merge -->
-        <div class="operation-card" id="mergeCard">
-          <div class="operation-header">
-            <h3>merge</h3>
-            <input
-              type="checkbox"
-              id="enableMerge"
-              class="operation-checkbox"
-            />
-          </div>
-          <div id="mergeGroup" class="merge-group" style="display: none">
-            <ol class="merge-list" id="mergeList"></ol>
-            <button type="button" class="merge-add-btn" id="mergeAddBtn">
-              + add pdfs
-            </button>
-            <input
-              type="file"
-              id="mergeFiles"
-              accept=".pdf,application/pdf"
-              multiple
-              hidden
-            />
-            <small id="mergeSummary"></small>
-            <small>drop pdfs here · drag rows or use ↑ ↓ to reorder</small>
-          </div>
-        </div>
-
-        <!-- PDF Split -->
-        <div class="operation-card">
-          <div class="operation-header">
-            <h3>split</h3>
-            <input
-              type="checkbox"
-              id="enableSplit"
-              class="operation-checkbox"
-            />
-          </div>
-          <div id="splitGroup" style="display: none">
-            <div class="form-group">
-              <label for="splitType">split method:</label>
-              <select id="splitType">
-                <option value="individual">individual pages</option>
-                <option value="ranges">custom ranges</option>
-                <option value="evenodd">even/odd pages</option>
+              <label for="pageNumberFormat">format:</label>
+              <select id="pageNumberFormat">
+                <option value="n">1</option>
+                <option value="n-of-total">1 / 10</option>
+                <option value="page-n-of-total">page 1 of 10</option>
               </select>
             </div>
-            <div class="form-group" id="splitRangesGroup" style="display: none">
-              <label for="splitRanges">page ranges (e.g., 1-3, 5, 7-10):</label>
-              <input type="text" id="splitRanges" placeholder="1-3, 5, 7-10" />
+            <div class="form-group">
+              <label for="pageNumberSize">font size:</label>
+              <input type="number" id="pageNumberSize" value="12" min="6" max="48" />
+            </div>
+            <div class="form-group">
+              <label for="startPage">first number:</label>
+              <input type="number" id="startPage" value="1" min="0" />
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="skipFirstPage" />
+              <label for="skipFirstPage">no number on first page (cover)</label>
             </div>
           </div>
         </div>
 
         <!-- Watermark -->
-        <div class="operation-card">
-          <div class="operation-header">
-            <h3>watermark</h3>
-            <input
-              type="checkbox"
-              id="enableWatermark"
-              class="operation-checkbox"
-            />
-          </div>
-          <div id="watermarkGroup" style="display: none">
+        <div class="operation-card" data-tool="watermark">
+          <label class="operation-header">
+            <span class="operation-title">watermark</span>
+            <input type="checkbox" id="enableWatermark" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
             <div class="form-group">
-              <label for="watermarkType">watermark type:</label>
+              <label for="watermarkType">type:</label>
               <select id="watermarkType">
                 <option value="text">text</option>
-                <option value="image">Image</option>
+                <option value="image">image</option>
               </select>
             </div>
             <div id="textWatermarkGroup">
               <div class="form-group">
                 <label for="watermarkText">text:</label>
-                <input
-                  type="text"
-                  id="watermarkText"
-                  placeholder="Enter watermark text"
-                />
+                <input type="text" id="watermarkText" placeholder="e.g. draft" autocomplete="off" />
               </div>
               <div class="form-group">
                 <label for="watermarkFontSize">font size:</label>
-                <input
-                  type="number"
-                  id="watermarkFontSize"
-                  value="24"
-                  min="8"
-                  max="72"
-                />
+                <input type="number" id="watermarkFontSize" value="48" min="8" max="200" />
               </div>
               <div class="form-group">
                 <label for="watermarkColor">color:</label>
-                <input type="color" id="watermarkColor" value="#cccccc" />
-              </div>
-              <div class="form-group">
-                <label for="watermarkRotation">rotation (degrees):</label>
-                <input
-                  type="number"
-                  id="watermarkRotation"
-                  value="45"
-                  min="-360"
-                  max="360"
-                />
+                <input type="color" id="watermarkColor" value="#888888" />
               </div>
             </div>
-            <div id="imageWatermarkGroup" style="display: none">
+            <div id="imageWatermarkGroup" hidden>
               <div class="form-group">
-                <label for="watermarkImage">select image:</label>
-                <input
-                  type="file"
-                  id="watermarkImage"
-                  accept=".jpg,.jpeg,.png"
-                />
+                <label for="watermarkImage">png / jpeg:</label>
+                <input type="file" id="watermarkImage" accept=".jpg,.jpeg,.png,image/png,image/jpeg" />
               </div>
               <div class="form-group">
-                <label for="watermarkImageScale">scale (0.1 - 2.0):</label>
-                <input
-                  type="number"
-                  id="watermarkImageScale"
-                  value="0.3"
-                  min="0.1"
-                  max="2.0"
-                  step="0.1"
-                />
+                <label for="watermarkImageScale">scale:</label>
+                <input type="number" id="watermarkImageScale" value="0.3" min="0.05" max="5" step="0.05" />
               </div>
+            </div>
+            <div class="form-group">
+              <label for="watermarkRotation">rotation (°):</label>
+              <input type="number" id="watermarkRotation" value="45" min="-360" max="360" />
             </div>
             <div class="form-group">
               <label for="watermarkPosition">position:</label>
               <select id="watermarkPosition">
                 <option value="center">center</option>
                 <option value="top-left">top left</option>
+                <option value="top-center">top center</option>
                 <option value="top-right">top right</option>
                 <option value="bottom-left">bottom left</option>
-                <option value="bottom-right">bottom right</option>
-                <option value="top-center">top center</option>
                 <option value="bottom-center">bottom center</option>
+                <option value="bottom-right">bottom right</option>
               </select>
             </div>
             <div class="form-group">
-              <label for="watermarkOpacity">opacity (0.1 - 1.0):</label>
+              <label for="watermarkOpacity">opacity:</label>
+              <input type="number" id="watermarkOpacity" value="0.3" min="0.05" max="1" step="0.05" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Compress -->
+        <div class="operation-card" data-tool="compress">
+          <label class="operation-header">
+            <span class="operation-title">compress</span>
+            <input type="checkbox" id="enableCompression" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
+            <div class="form-group">
+              <label for="compressionLevel">quality:</label>
+              <select id="compressionLevel">
+                <option value="high">high</option>
+                <option value="medium" selected>medium</option>
+                <option value="low">low (smallest)</option>
+              </select>
+            </div>
+            <small>re-encodes large images as jpeg. text and vector graphics are not touched.</small>
+          </div>
+        </div>
+
+        <!-- Split -->
+        <div class="operation-card" data-tool="split">
+          <label class="operation-header">
+            <span class="operation-title">split</span>
+            <input type="checkbox" id="enableSplit" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
+            <div class="form-group">
+              <label for="splitType">split into:</label>
+              <select id="splitType">
+                <option value="individual">single pages</option>
+                <option value="every">every n pages</option>
+                <option value="ranges">custom ranges</option>
+                <option value="evenodd">odd / even pages</option>
+              </select>
+            </div>
+            <div class="form-group" id="splitRangesGroup" hidden>
+              <label for="splitRanges">ranges:</label>
+              <input type="text" id="splitRanges" placeholder="1-3, 4-6, 7-" autocomplete="off" />
+            </div>
+            <div class="form-group" id="splitEveryGroup" hidden>
+              <label for="splitEvery">pages per file:</label>
+              <input type="number" id="splitEvery" value="2" min="1" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="operation-card" data-tool="metadata">
+          <label class="operation-header">
+            <span class="operation-title">metadata</span>
+            <input type="checkbox" id="enableMetadata" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
+            <div class="form-group">
+              <label for="metaTitle">title:</label>
+              <input type="text" id="metaTitle" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label for="metaAuthor">author:</label>
+              <input type="text" id="metaAuthor" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label for="metaSubject">subject:</label>
+              <input type="text" id="metaSubject" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label for="metaKeywords">keywords:</label>
+              <input type="text" id="metaKeywords" autocomplete="off" />
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="metaStrip" />
+              <label for="metaStrip">remove everything else (creator, producer, dates)</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="operation-card" data-tool="password">
+          <label class="operation-header">
+            <span class="operation-title">password</span>
+            <input type="checkbox" id="enablePassword" class="operation-checkbox" />
+          </label>
+          <div class="operation-body" hidden>
+            <div class="form-group">
+              <label for="pdfPassword">password:</label>
               <input
-                type="number"
-                id="watermarkOpacity"
-                value="0.3"
-                min="0.1"
-                max="1.0"
-                step="0.1"
+                type="password"
+                id="pdfPassword"
+                autocomplete="new-password"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-form-type="other"
               />
             </div>
-          </div>
-        </div>
-
-        <!-- Compression -->
-        <div class="operation-card">
-          <div class="operation-header">
-            <h3>compress</h3>
-            <input
-              type="checkbox"
-              id="enableCompression"
-              class="operation-checkbox"
-            />
-          </div>
-          <div id="compressionGroup" style="display: none">
             <div class="form-group">
-              <label for="compressionLevel">compression level:</label>
-              <select id="compressionLevel">
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-              </select>
+              <label for="confirmPassword">confirm:</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                autocomplete="new-password"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-form-type="other"
+              />
             </div>
             <div class="checkbox-group">
-              <input type="checkbox" id="removeMetadata" checked />
-              <label for="removeMetadata">remove metadata</label>
+              <input type="checkbox" id="showPassword" />
+              <label for="showPassword">show password</label>
             </div>
-            <div class="checkbox-group">
-              <input type="checkbox" id="optimizeImages" />
-              <label for="optimizeImages">optimize images</label>
-            </div>
+            <small id="passwordHint">aes-128 encryption, opens in any pdf reader</small>
           </div>
         </div>
-        <!-- <div class="operation-card">
-          <h3>more tools?</h3>
-        </div> -->
       </div>
 
-      <button class="process-btn" id="processBtn" style="display: none">
-        process
-      </button>
+      <button class="process-btn" id="processBtn" type="button" hidden>process</button>
 
-      <div class="download-section" id="downloadSection" style="display: none">
-        <button class="download-btn" id="downloadBtn">download</button>
-        <div id="splitDownloadSection" style="display: none; margin-top: 15px">
-          <p style="margin-bottom: 10px; color: #666">
-            split files ready for download:
-          </p>
-          <div id="splitDownloadLinks"></div>
-        </div>
+      <div class="download-section" id="downloadSection" hidden>
+        <p class="result-summary" id="resultSummary"></p>
+        <button class="download-btn" id="downloadBtn" type="button">download</button>
+        <div class="split-downloads" id="splitDownloadLinks"></div>
       </div>
     </div>
 

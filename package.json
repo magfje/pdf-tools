@@ -1,0 +1,9 @@
+{
+  "name": "pdf-tools",
+  "private": true,
+  "type": "module",
+  "description": "Client-side PDF tools. No build step: index.html loads the ES modules directly.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

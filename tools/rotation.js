@@ -1,35 +1,24 @@
-export function applyRotations(pdfDoc) {
-  const enableRotation = document.getElementById("enableRotation").checked;
-  if (!enableRotation) return {};
+import { degrees } from "./pdflib.js";
+import { displayGeometry, getRotation } from "./geometry.js";
 
-  const rotationAngle = parseInt(
-    document.getElementById("rotationAngle").value
-  );
-  const rotationPages = document.getElementById("rotationPages").value;
+/**
+ * Rotate pages clockwise by `angle` (90, 180, 270), adding to any rotation the
+ * page already has. `which` is "all", "landscape" or "portrait", judged by how
+ * the page is displayed (so a portrait page stored with /Rotate 90 counts as
+ * landscape).
+ */
+export function rotatePages(pdfDoc, { angle, which = "all" }) {
+  let rotated = 0;
+  for (const page of pdfDoc.getPages()) {
+    const { isLandscape } = displayGeometry(page);
+    const matches =
+      which === "all" ||
+      (which === "landscape" && isLandscape) ||
+      (which === "portrait" && !isLandscape);
+    if (!matches) continue;
 
-  const pdfPages = pdfDoc.getPages();
-  const rotationInfo = {};
-
-  pdfPages.forEach((page, index) => {
-    const { width, height } = page.getSize();
-    const isLandscape = width > height;
-
-    let shouldRotate = false;
-    if (rotationPages === "all") shouldRotate = true;
-    else if (rotationPages === "landscape" && isLandscape) shouldRotate = true;
-    else if (rotationPages === "portrait" && !isLandscape) shouldRotate = true;
-
-    if (shouldRotate) {
-      page.setRotation(PDFLib.degrees(rotationAngle));
-      rotationInfo[index] = rotationAngle;
-    } else {
-      rotationInfo[index] = 0;
-    }
-  });
-
-  return rotationInfo;
-}
-
-export function isRotationEnabled() {
-  return document.getElementById("enableRotation").checked;
+    page.setRotation(degrees((getRotation(page) + angle) % 360));
+    rotated++;
+  }
+  return rotated;
 }

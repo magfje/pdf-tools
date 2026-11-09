@@ -1,84 +1,52 @@
 # PDF Tools
 
-A powerful web-based PDF manipulation tool that runs entirely in your browser. No server uploads required - all processing happens client-side for maximum privacy and security.
+A web-based PDF toolbox that runs entirely in your browser. Files are never
+uploaded: everything happens on your device.
 
-## Features
+## Tools
 
-### 🔒 **Password Protection**
+Turn on any combination of tools and press **process**. They always run in
+this order, so the result is predictable:
 
-- Add password protection to your PDFs
-- Uses Python (PyPDF)
-- Standard PDF encryption that works with any PDF viewer
+**merge → remove pages → rotate → scale to A4 → margins → page numbers → watermark → compress → split → metadata → password**
 
-### 🔄 **Rotation**
+| Tool | What it does |
+| --- | --- |
+| **Merge** | Combine any number of PDFs. Drop or pick several files, then drag rows (or use ↑ ↓) to set the order. The main file can go anywhere. |
+| **Remove pages** | Drop pages by number, e.g. `1, 4-6, 10-`. |
+| **Rotate** | 90°/180°/270°, for all, landscape-only or portrait-only pages. Adds to any rotation the page already has, and judges landscape/portrait by how the page is displayed. |
+| **Scale to A4** | Fit each page to A4 in its own orientation, fit to portrait A4, or stretch. Content is centred and links stay aligned. |
+| **Margins** | Shrink content to leave a blank margin (mm), on all sides or per side. Includes a **Digipost letter** preset (A4, 15 mm). |
+| **Page numbers** | Six positions, formats `1` / `1 / 10` / `page 1 of 10`, custom first number, optional unnumbered cover page. Numbers are upright on rotated pages. |
+| **Watermark** | Text or PNG/JPEG image with position, rotation and opacity. |
+| **Compress** | Re-encodes large images as JPEG at high/medium/low quality and saves with compact object streams. Text and vector graphics are untouched. |
+| **Split** | Single pages, every _n_ pages, custom ranges, or odd/even. Download each part or everything as a `.zip`. |
+| **Metadata** | Edit title, author, subject and keywords (pre-filled from the file), or remove all metadata. |
+| **Password** | AES-128 encryption that opens in any PDF reader. |
 
-- Rotate pages by 90°, 180°, or 270°
-- Apply rotation to all pages, only landscape, or only portrait pages
-- Smart page number positioning after rotation
+Password-protected PDFs can be opened too. Enter the password and the output
+is saved without it (unless you add one).
 
-### 📏 **A4 Scaling**
+## Development
 
-- Scale all pages to A4 size (210mm × 297mm)
-- Three scaling modes:
-  - **Fit to A4**: Maintains aspect ratio while fitting within A4 bounds
-  - **Stretch to A4**: Forces exact A4 size (may distort content)
-  - **Smart**: Automatically uses A4 portrait/landscape based on page orientation
-- Works with all other operations
+No build step. `index.html` loads the ES modules directly, so any static file
+server works:
 
-### 🔢 **Page Numbers**
+```sh
+python3 -m http.server   # then open http://localhost:8000
+npm test                 # unit tests (Node 22+, no dependencies to install)
+```
 
-- Add page numbers to your PDFs
-- Multiple positioning options (top/bottom, left/center/right)
-- Customizable font size and starting page
-- Rotation-aware positioning
-
-### 🔗 **Merge**
-
-- Combine multiple PDF files into one
-- Drag and drop multiple files
-- Files are merged in the order selected
-
-### ✂️ **Split**
-
-- Split PDFs into individual pages
-- Custom page ranges (e.g., "1-3, 5, 7-10")
-- Even/odd page separation
-- Bulk download of split files
-
-### 🏷️ **Watermarks**
-
-- Add text or image watermarks
-- Customizable opacity, position, and rotation
-- Support for JPEG and PNG images
-- Color customization for text watermarks
-
-### 📦 **Compression**
-
-- Reduce PDF file size
-- Multiple compression levels (low, medium, high)
-- Remove metadata to save space
-- Optimize document structure
-
-## How to Use
-
-1. **Upload your PDF** by clicking the upload area or dragging and dropping
-2. **View file information** including page count, file size, and page dimensions
-3. **Select operations** you want to perform using the checkboxes
-4. **Configure settings** for each enabled operation
-5. **Click "Process"** to apply all operations
-6. **Download** your processed PDF(s)
-
-### Privacy & Security
-
-- **100% client-side processing** - your files never leave your device
-- No server uploads or data transmission
-- No file storage or logging
-- Perfect for sensitive documents
+```
+script.js        app wiring: file loading, results, downloads
+ui/              DOM helpers: merge list, reading settings, canvas image encoder
+tools/           the PDF tools. Plain functions (pdfDoc, options) with no DOM access
+  pipeline.js    runs the enabled tools in order
+  geometry.js    "as displayed" page geometry shared by the tools
+tests/           node:test unit tests for tools/
+vendor/          pdf-lib-with-encrypt and JSZip (see vendor/README.md)
+```
 
 ## License
 
 This project is open source. Feel free to use, modify, and distribute.
-
----
-
-**Built with privacy in mind** 🔒 | **No server required** 🌐 | **Works offline** 📱

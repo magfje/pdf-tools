@@ -1,45 +1,32 @@
-import { compressPDF, isCompressionEnabled } from "./tools/compress.js";
+import { displayGeometry } from "./tools/geometry.js";
+import { loadPdf, PasswordRequiredError } from "./tools/load.js";
+import { readMetadata } from "./tools/metadata.js";
+import { runPipeline } from "./tools/pipeline.js";
+import { browserImageEncoder } from "./ui/imageEncoder.js";
 import {
-  addMergeFiles,
-  getMergeFiles,
-  hasExtraMergeFiles,
-  initMergeUI,
-  isMergeEnabled,
+  addFiles as addMergeFiles,
+  clearAll as clearMergeList,
+  getItems,
+  hasExtraFiles,
+  initMergeList,
   isPdf,
-  mergePDFs,
-  setMainMergeFile,
-} from "./tools/merge.js";
-import { addPageNumbers, isPageNumbersEnabled } from "./tools/pageNumbers.js";
-import {
-  applyPasswordProtection,
-  isPasswordEnabled,
-} from "./tools/password.js";
-import { applyRotations, isRotationEnabled } from "./tools/rotation.js";
-import { isScalingEnabled, scaleToA4 } from "./tools/scale.js";
-import { isSplitEnabled, splitPDF } from "./tools/split.js";
-import { addWatermark, isWatermarkEnabled } from "./tools/watermark.js";
+  setMainItem,
+} from "./ui/mergeList.js";
+import { readOptions } from "./ui/options.js";
 
-let originalPdfDoc = null;
-let processedPdfBytes = null;
-let splitResults = [];
-let fileName = "";
+const $ = (id) => document.getElementById(id);
 
-// File upload handling
-const fileInput = document.getElementById("fileInput");
-const uploadSection = document.getElementById("uploadSection");
-const operationsGrid = document.getElementById("operationsGrid");
-const processBtn = document.getElementById("processBtn");
-const chooseFileBtn = document.getElementById("chooseFileBtn");
-const downloadBtn = document.getElementById("downloadBtn");
+const fileInput = $("fileInput");
+const uploadSection = $("uploadSection");
+const fileInfo = $("fileInfo");
+const operationsGrid = $("operationsGrid");
+const processBtn = $("processBtn");
+const downloadSection = $("downloadSection");
 
-fileInput.addEventListener("change", handleFileSelect);
-chooseFileBtn.addEventListener("click", () => fileInput.click());
-processBtn.addEventListener("click", processPDF);
-downloadBtn.addEventListener("click", downloadPDF);
-initMergeUI();
+let results = []; // [{ name, bytes, pageCount }]
 
-// Theme switcher
-const themeSwitcher = document.getElementById("themeSwitcher");
+// ---------------------------------------------------------------- theme ---
+
 const themes = [
   "theme-cyberpunk",
   "theme-powershell",
@@ -50,577 +37,536 @@ const themes = [
   "theme-aurora",
 ];
 
-// Load saved theme from localStorage or default to forest (index 4)
-let currentThemeIndex =
-  parseInt(localStorage.getItem("selectedThemeIndex")) || 1;
-
-// Initialize theme
-document.body.classList.add(themes[currentThemeIndex]);
-
-themeSwitcher.addEventListener("click", () => {
-  // Remove current theme
-  document.body.classList.remove(themes[currentThemeIndex]);
-
-  // Select random theme (different from current)
-  let newIndex;
-  do {
-    newIndex = Math.floor(Math.random() * themes.length);
-  } while (newIndex === currentThemeIndex && themes.length > 1);
-
-  currentThemeIndex = newIndex;
-
-  // Apply new theme
-  document.body.classList.add(themes[currentThemeIndex]);
-
-  // Save selected theme to localStorage
-  localStorage.setItem("selectedThemeIndex", currentThemeIndex.toString());
-
-  // Add a subtle animation effect
-  themeSwitcher.style.transform = "scale(0.95)";
-  setTimeout(() => {
-    themeSwitcher.style.transform = "scale(1)";
-  }, 100);
-});
-
-// Drag and drop
-uploadSection.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  uploadSection.classList.add("dragover");
-});
-
-uploadSection.addEventListener("dragleave", () => {
-  uploadSection.classList.remove("dragover");
-});
-
-uploadSection.addEventListener("drop", (e) => {
-  e.preventDefault();
-  uploadSection.classList.remove("dragover");
-  const files = Array.from(e.dataTransfer.files).filter(isPdf);
-  if (files.length > 0) {
-    const dt = new DataTransfer();
-    files.forEach((f) => dt.items.add(f));
-    fileInput.files = dt.files;
-    handleFileSelect();
-  }
-});
-
-// Checkbox handlers
-document
-  .getElementById("enableRotation")
-  .addEventListener("change", function () {
-    document.getElementById("rotationGroup").style.display = this.checked
-      ? "block"
-      : "none";
-  });
-
-document
-  .getElementById("enablePageNumbers")
-  .addEventListener("change", function () {
-    document.getElementById("pageNumberGroup").style.display = this.checked
-      ? "block"
-      : "none";
-  });
-
-document.getElementById("enableMerge").addEventListener("change", function () {
-  setMergeVisible(this.checked);
-});
-
-function setMergeVisible(visible) {
-  document.getElementById("enableMerge").checked = visible;
-  document.getElementById("mergeGroup").style.display = visible
-    ? "flex"
-    : "none";
-  document.getElementById("mergeCard").classList.toggle("expanded", visible);
-}
-
-document.getElementById("enableSplit").addEventListener("change", function () {
-  document.getElementById("splitGroup").style.display = this.checked
-    ? "block"
-    : "none";
-});
-
-document
-  .getElementById("enableWatermark")
-  .addEventListener("change", function () {
-    document.getElementById("watermarkGroup").style.display = this.checked
-      ? "block"
-      : "none";
-  });
-
-document
-  .getElementById("enableCompression")
-  .addEventListener("change", function () {
-    document.getElementById("compressionGroup").style.display = this.checked
-      ? "block"
-      : "none";
-  });
-
-document
-  .getElementById("enableScaling")
-  .addEventListener("change", function () {
-    document.getElementById("scalingGroup").style.display = this.checked
-      ? "block"
-      : "none";
-  });
-
-// Split type handler
-document.getElementById("splitType").addEventListener("change", function () {
-  const rangesGroup = document.getElementById("splitRangesGroup");
-  rangesGroup.style.display = this.value === "ranges" ? "block" : "none";
-});
-
-// Watermark type handler
-document
-  .getElementById("watermarkType")
-  .addEventListener("change", function () {
-    const textGroup = document.getElementById("textWatermarkGroup");
-    const imageGroup = document.getElementById("imageWatermarkGroup");
-
-    if (this.value === "text") {
-      textGroup.style.display = "block";
-      imageGroup.style.display = "none";
-    } else {
-      textGroup.style.display = "none";
-      imageGroup.style.display = "block";
-    }
-  });
-
-// Helper function to get page size information
-function getPageSizeInfo(pdfDoc) {
-  const pages = pdfDoc.getPages();
-  const pageCount = pages.length;
-
-  if (pageCount === 0) return "No pages";
-
-  // Get dimensions of first page
-  const firstPage = pages[0];
-  const { width: firstWidth, height: firstHeight } = firstPage.getSize();
-  const firstIsLandscape = firstWidth > firstHeight;
-
-  // Check if all pages have the same size
-  let allSameSize = true;
-  let minWidth = firstWidth,
-    maxWidth = firstWidth;
-  let minHeight = firstHeight,
-    maxHeight = firstHeight;
-
-  for (let i = 1; i < pages.length; i++) {
-    const { width, height } = pages[i].getSize();
-    if (width !== firstWidth || height !== firstHeight) {
-      allSameSize = false;
-    }
-    minWidth = Math.min(minWidth, width);
-    maxWidth = Math.max(maxWidth, width);
-    minHeight = Math.min(minHeight, height);
-    maxHeight = Math.max(maxHeight, height);
-  }
-
-  // Convert points to mm (1 point = 0.3528 mm)
-  const pointsToMm = (points) => (points * 0.3528).toFixed(1);
-
-  // Detect common paper sizes (tolerance of ±2mm)
-  function detectPaperSize(width, height) {
-    const tolerance = 2; // mm
-
-    // A4: 210 × 297 mm
-    if (
-      Math.abs(width - 210) <= tolerance &&
-      Math.abs(height - 297) <= tolerance
-    )
-      return "A4";
-    if (
-      Math.abs(width - 297) <= tolerance &&
-      Math.abs(height - 210) <= tolerance
-    )
-      return "A4 (landscape)";
-
-    // Letter: 216 × 279 mm
-    if (
-      Math.abs(width - 216) <= tolerance &&
-      Math.abs(height - 279) <= tolerance
-    )
-      return "Letter";
-    if (
-      Math.abs(width - 279) <= tolerance &&
-      Math.abs(height - 216) <= tolerance
-    )
-      return "Letter (landscape)";
-
-    // Legal: 216 × 356 mm
-    if (
-      Math.abs(width - 216) <= tolerance &&
-      Math.abs(height - 356) <= tolerance
-    )
-      return "Legal";
-    if (
-      Math.abs(width - 356) <= tolerance &&
-      Math.abs(height - 216) <= tolerance
-    )
-      return "Legal (landscape)";
-
-    // A3: 297 × 420 mm
-    if (
-      Math.abs(width - 297) <= tolerance &&
-      Math.abs(height - 420) <= tolerance
-    )
-      return "A3";
-    if (
-      Math.abs(width - 420) <= tolerance &&
-      Math.abs(height - 297) <= tolerance
-    )
-      return "A3 (landscape)";
-
-    // A5: 148 × 210 mm
-    if (
-      Math.abs(width - 148) <= tolerance &&
-      Math.abs(height - 210) <= tolerance
-    )
-      return "A5";
-    if (
-      Math.abs(width - 210) <= tolerance &&
-      Math.abs(height - 148) <= tolerance
-    )
-      return "A5 (landscape)";
-
-    return null;
-  }
-
-  if (allSameSize) {
-    const widthMm = pointsToMm(firstWidth);
-    const heightMm = pointsToMm(firstHeight);
-    const orientation = firstIsLandscape ? "landscape" : "portrait";
-    const paperSize = detectPaperSize(
-      parseFloat(widthMm),
-      parseFloat(heightMm)
-    );
-
-    if (paperSize) {
-      return `${paperSize} (${widthMm} × ${heightMm} mm)`;
-    } else {
-      return `${widthMm} × ${heightMm} mm (${orientation})`;
-    }
-  } else {
-    const minWidthMm = pointsToMm(minWidth);
-    const maxWidthMm = pointsToMm(maxWidth);
-    const minHeightMm = pointsToMm(minHeight);
-    const maxHeightMm = pointsToMm(maxHeight);
-    return `various sizes (${minWidthMm}-${maxWidthMm} × ${minHeightMm}-${maxHeightMm} mm)`;
-  }
-}
-
-async function handleFileSelect() {
-  const files = Array.from(fileInput.files).filter(isPdf);
-  const file = files[0];
-  if (!file) return;
-  const extraFiles = files.slice(1);
-
-  fileName = file.name.replace(".pdf", "");
-  showStatus("Loading PDF...", "processing");
-
+function loadThemeIndex() {
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    originalPdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+    const saved = Number.parseInt(localStorage.getItem("selectedThemeIndex"), 10);
+    if (saved >= 0 && saved < themes.length) return saved;
+  } catch {
+    // storage blocked: fall through to the default
+  }
+  return 1; // powershell
+}
 
-    const pageCount = originalPdfDoc.getPageCount();
-    const pageSizeInfo = getPageSizeInfo(originalPdfDoc);
+let themeIndex = loadThemeIndex();
+document.body.classList.add(themes[themeIndex]);
 
-    document.getElementById("fileInfo").innerHTML = `
-                <div class="file-info">
-                    <strong>File:</strong> ${file.name}<br>
-                    <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(
-                      2
-                    )} MB<br>
-                    <strong>Pages:</strong> ${pageCount}<br>
-                    <strong>Page Size:</strong> ${pageSizeInfo}
-                </div>
-            `;
+$("themeSwitcher").addEventListener("click", (e) => {
+  document.body.classList.remove(themes[themeIndex]);
+  let next;
+  do next = Math.floor(Math.random() * themes.length);
+  while (next === themeIndex);
+  themeIndex = next;
+  document.body.classList.add(themes[themeIndex]);
+  try {
+    localStorage.setItem("selectedThemeIndex", String(themeIndex));
+  } catch {
+    // ignore
+  }
+  const btn = e.currentTarget;
+  btn.style.transform = "scale(0.95)";
+  setTimeout(() => (btn.style.transform = ""), 100);
+});
 
-    operationsGrid.style.display = "grid";
-    processBtn.style.display = "block";
-    showStatus(
-      "PDF loaded successfully! Configure your operations below.",
-      "success"
-    );
+// --------------------------------------------------------------- status ---
 
-    // Update start page max value
-    document.getElementById("startPage").max = pageCount;
+function showStatus(message, type = "info") {
+  const status = $("status");
+  status.innerHTML = "";
+  if (!message) return;
+  const div = document.createElement("div");
+  div.className = `status ${type}`;
+  div.textContent = message;
+  status.appendChild(div);
+}
 
-    // Keep the merge list in sync; extra files go straight into it
-    setMainMergeFile(file);
-    if (extraFiles.length > 0) {
-      addMergeFiles(extraFiles);
-      setMergeVisible(true);
-      showStatus(
-        `PDF loaded! ${extraFiles.length} more file(s) added to merge — set the order below.`,
-        "success"
-      );
-    }
-  } catch (error) {
-    showStatus("Error loading PDF: " + error.message, "error");
+// ----------------------------------------------------------- tool cards ---
+
+for (const card of document.querySelectorAll(".operation-card")) {
+  const checkbox = card.querySelector(".operation-checkbox");
+  const body = card.querySelector(".operation-body");
+  const sync = () => {
+    body.hidden = !checkbox.checked;
+    card.classList.toggle("active", checkbox.checked);
+  };
+  checkbox.addEventListener("change", sync);
+  sync();
+}
+
+function enableTool(id, enabled = true) {
+  const checkbox = $(id);
+  if (checkbox.checked !== enabled) {
+    checkbox.checked = enabled;
+    checkbox.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
 
-async function processPDF() {
-  if (!originalPdfDoc) return;
+$("watermarkType").addEventListener("change", (e) => {
+  $("textWatermarkGroup").hidden = e.target.value !== "text";
+  $("imageWatermarkGroup").hidden = e.target.value !== "image";
+});
 
-  const enableRotation = isRotationEnabled();
-  const enablePageNumbers = isPageNumbersEnabled();
-  const enablePassword = isPasswordEnabled();
-  const enableMerge = isMergeEnabled();
-  const enableSplit = isSplitEnabled();
-  const enableWatermark = isWatermarkEnabled();
-  const enableCompression = isCompressionEnabled();
-  const enableScaling = isScalingEnabled();
+$("splitType").addEventListener("change", (e) => {
+  $("splitRangesGroup").hidden = e.target.value !== "ranges";
+  $("splitEveryGroup").hidden = e.target.value !== "every";
+});
 
-  if (
-    !enableRotation &&
-    !enablePageNumbers &&
-    !enablePassword &&
-    !enableMerge &&
-    !enableSplit &&
-    !enableWatermark &&
-    !enableCompression &&
-    !enableScaling
-  ) {
-    showStatus("Please select at least one operation to perform.", "error");
+$("marginSeparate").addEventListener("change", (e) => {
+  $("marginSides").hidden = !e.target.checked;
+  $("marginAll").disabled = e.target.checked;
+  if (e.target.checked) {
+    for (const side of ["Top", "Right", "Bottom", "Left"]) $(`margin${side}`).value = $("marginAll").value;
+  }
+});
+
+$("showPassword").addEventListener("change", (e) => {
+  const type = e.target.checked ? "text" : "password";
+  $("pdfPassword").type = type;
+  $("confirmPassword").type = type;
+});
+
+function updatePasswordHint() {
+  const a = $("pdfPassword").value;
+  const b = $("confirmPassword").value;
+  $("passwordHint").textContent =
+    b && a !== b ? "passwords don't match" : "aes-128 encryption, opens in any pdf reader";
+}
+$("pdfPassword").addEventListener("input", updatePasswordHint);
+$("confirmPassword").addEventListener("input", updatePasswordHint);
+
+$("digipostPreset").addEventListener("click", () => {
+  enableTool("enableScaling");
+  $("scalingMode").value = "smart";
+  enableTool("enableMargins");
+  $("marginSeparate").checked = false;
+  $("marginSeparate").dispatchEvent(new Event("change"));
+  $("marginAll").value = 15;
+  enableTool("enablePassword", false);
+  const pages = mainItem()?.pageCount ?? 0;
+  showStatus(
+    "digipost preset: a4 with 15 mm margins. digipost also requires max 20 pages and no password" +
+      (pages > 20 ? ` (this file has ${pages} pages)` : ""),
+    pages > 20 ? "error" : "info"
+  );
+});
+
+// Enter in a settings field runs the tools.
+operationsGrid.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches("input:not([type=checkbox]):not([type=file])") && !e.target.closest("form")) {
+    e.preventDefault();
+    processPDF();
+  }
+});
+
+// Changing anything after processing makes the result stale.
+operationsGrid.addEventListener("input", invalidateResults);
+operationsGrid.addEventListener("change", invalidateResults);
+
+// --------------------------------------------------------------- files ---
+
+/** Read a file and work out whether it needs a password. Never throws for locked files. */
+async function inspectFile(file, password) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  try {
+    const doc = await loadPdf(bytes, { name: file.name, password });
+    return { file, bytes, password, doc, pageCount: doc.getPageCount(), locked: false, wrongPassword: false };
+  } catch (error) {
+    if (error instanceof PasswordRequiredError) {
+      return { file, bytes, password: undefined, doc: null, pageCount: 0, locked: true, wrongPassword: error.wrongPassword };
+    }
+    throw error;
+  }
+}
+
+function mainItem() {
+  return getItems().find((item) => item.isMain);
+}
+
+async function openFiles(fileList) {
+  const files = Array.from(fileList).filter(isPdf);
+  if (files.length === 0) {
+    showStatus("that doesn't look like a pdf", "error");
     return;
   }
 
-  showStatus("Processing PDF...", "processing");
+  showStatus("loading…", "processing");
+  let main;
+  try {
+    main = await inspectFile(files[0]);
+  } catch (error) {
+    showStatus(error.message, "error");
+    return;
+  }
+
+  clearMergeList();
+  setMainItem(main);
+  clearResults();
+  operationsGrid.hidden = false;
+  processBtn.hidden = false;
+  renderFileInfo();
+
+  const extras = files.slice(1);
+  if (extras.length > 0) {
+    await addMergeFiles(extras);
+    enableTool("enableMerge");
+  }
+
+  if (main.locked) {
+    showStatus(`"${main.file.name}" is password-protected. enter its password to open it`, "error");
+  } else if (extras.length > 0) {
+    showStatus(`${files.length} files loaded and added to merge. set the order below`, "success");
+  } else {
+    showStatus("pdf loaded. pick the tools you want below", "success");
+  }
+}
+
+async function unlockMain(password) {
+  const main = mainItem();
+  const info = await inspectFile(main.file, password);
+  setMainItem(info);
+  renderFileInfo();
+  if (info.locked) {
+    showStatus("wrong password, try again", "error");
+  } else {
+    showStatus("unlocked. the output will have no password unless you add one", "success");
+  }
+}
+
+function resetAll() {
+  clearMergeList();
+  clearResults();
+  fileInfo.hidden = true;
+  fileInfo.innerHTML = "";
+  operationsGrid.hidden = true;
+  processBtn.hidden = true;
+  showStatus("");
+}
+
+$("chooseFileBtn").addEventListener("click", () => fileInput.click());
+uploadSection.addEventListener("click", (e) => {
+  if (e.target === uploadSection) fileInput.click();
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length) openFiles(fileInput.files);
+  fileInput.value = ""; // allow picking the same file again
+});
+
+// Dropping anywhere on the page opens the files (instead of the browser
+// navigating away to show the PDF). The merge card handles its own drops.
+let dragDepth = 0;
+window.addEventListener("dragenter", (e) => {
+  if (!e.dataTransfer?.types.includes("Files")) return;
+  dragDepth++;
+  uploadSection.classList.add("dragover");
+});
+window.addEventListener("dragleave", () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) uploadSection.classList.remove("dragover");
+});
+window.addEventListener("dragover", (e) => {
+  if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+});
+window.addEventListener("drop", (e) => {
+  dragDepth = 0;
+  uploadSection.classList.remove("dragover");
+  if (!e.dataTransfer?.files.length) return;
+  e.preventDefault();
+  openFiles(e.dataTransfer.files);
+});
+
+// ------------------------------------------------------------ file info ---
+
+const PAPER_SIZES = [
+  ["A3", 297, 420],
+  ["A4", 210, 297],
+  ["A5", 148, 210],
+  ["Letter", 215.9, 279.4],
+  ["Legal", 215.9, 355.6],
+];
+
+function describePageSizes(doc) {
+  const pages = doc.getPages();
+  if (pages.length === 0) return "no pages";
+  const toMm = (pt) => (pt * 25.4) / 72;
+  const sizes = pages.map((p) => {
+    const v = displayGeometry(p);
+    return [toMm(v.width), toMm(v.height)];
+  });
+  const [w, h] = sizes[0];
+  const same = sizes.every(([a, b]) => Math.abs(a - w) < 1 && Math.abs(b - h) < 1);
+  if (!same) return "mixed sizes";
+
+  const short = Math.min(w, h);
+  const long = Math.max(w, h);
+  const paper = PAPER_SIZES.find(([, a, b]) => Math.abs(short - a) <= 2 && Math.abs(long - b) <= 2);
+  const orientation = w > h ? "landscape" : "portrait";
+  const dims = `${w.toFixed(0)} × ${h.toFixed(0)} mm`;
+  return paper ? `${paper[0]} ${orientation} (${dims})` : `${dims} (${orientation})`;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} kb`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} mb`;
+}
+
+function renderFileInfo() {
+  const main = mainItem();
+  fileInfo.hidden = false;
+  fileInfo.innerHTML = "";
+  const box = document.createElement("div");
+  box.className = "file-info";
+
+  const row = (label, value) => {
+    const line = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = `${label}: `;
+    line.append(strong, document.createTextNode(value));
+    box.appendChild(line);
+  };
+
+  row("file", main.file.name);
+  row("size", formatSize(main.file.size));
+
+  if (main.locked) {
+    const form = document.createElement("form");
+    form.className = "unlock-form";
+    const input = document.createElement("input");
+    input.type = "password";
+    input.placeholder = "password";
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", "password for this pdf");
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.className = "small-btn";
+    submit.textContent = "unlock";
+    form.append(input, submit);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      unlockMain(input.value);
+    });
+    box.appendChild(form);
+    setTimeout(() => input.focus(), 0);
+  } else {
+    row("pages", String(main.pageCount));
+    row("page size", describePageSizes(main.doc));
+    const title = main.doc.getTitle();
+    if (title) row("title", title);
+    prefillMetadata(main.doc);
+  }
+
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "small-btn clear-btn";
+  clear.textContent = "× clear";
+  clear.addEventListener("click", resetAll);
+  box.appendChild(clear);
+
+  fileInfo.appendChild(box);
+  processBtn.disabled = main.locked;
+}
+
+function prefillMetadata(doc) {
+  const meta = readMetadata(doc);
+  $("metaTitle").value = meta.title;
+  $("metaAuthor").value = meta.author;
+  $("metaSubject").value = meta.subject;
+  $("metaKeywords").value = meta.keywords;
+}
+
+// ---------------------------------------------------------- processing ---
+
+const TOOL_LABELS = {
+  merge: "merged",
+  removePages: "trimmed",
+  rotate: "rotated",
+  scale: "a4",
+  margins: "margins",
+  pageNumbers: "numbered",
+  watermark: "watermarked",
+  compress: "compressed",
+  metadata: "edited",
+  password: "protected",
+};
+
+async function processPDF() {
+  const main = mainItem();
+  if (!main || processBtn.disabled) return;
+  if (main.locked) {
+    showStatus("unlock the pdf first", "error");
+    return;
+  }
+
+  const merging = $("enableMerge").checked && hasExtraFiles();
+  const items = merging ? getItems() : [main];
+  const locked = items.find((item) => item.locked);
+  if (locked) {
+    showStatus(`unlock "${locked.file.name}" (in the merge list) or remove it`, "error");
+    return;
+  }
+
+  let options;
+  try {
+    options = await readOptions({ merging });
+  } catch (error) {
+    showStatus(error.message, "error");
+    return;
+  }
+  const enabled = Object.keys(options);
+  if (enabled.length === 0) {
+    showStatus(
+      $("enableMerge").checked ? "add at least one more pdf to merge" : "pick at least one tool",
+      "error"
+    );
+    return;
+  }
+
+  clearResults();
   processBtn.disabled = true;
+  processBtn.textContent = "processing…";
+  showStatus("processing…", "processing");
 
   try {
-    let pdfDoc;
-
-    // Handle merge operation first (if enabled)
-    if (enableMerge) {
-      if (hasExtraMergeFiles()) {
-        // Merge all files (main file included) in the user's chosen order
-        pdfDoc = await mergePDFs(getMergeFiles());
-        fileName = fileName + "_merged";
-      } else {
-        // Create a copy of the original document if no merge files
-        pdfDoc = await PDFLib.PDFDocument.create();
-        const pages = await pdfDoc.copyPages(
-          originalPdfDoc,
-          originalPdfDoc.getPageIndices()
-        );
-        pages.forEach((page) => pdfDoc.addPage(page));
-      }
-    } else {
-      // Create a copy of the original document
-      pdfDoc = await PDFLib.PDFDocument.create();
-      const pages = await pdfDoc.copyPages(
-        originalPdfDoc,
-        originalPdfDoc.getPageIndices()
-      );
-      pages.forEach((page) => pdfDoc.addPage(page));
+    // Load fresh copies every run: the tools modify documents in place.
+    const docs = [];
+    for (const item of items) {
+      docs.push(await loadPdf(item.bytes, { name: item.file.name, password: item.password }));
     }
 
-    // Handle split operation (returns multiple PDFs)
-    if (enableSplit) {
-      splitResults = await splitPDF(pdfDoc);
+    const { outputs, report } = await runPipeline(docs, options, {
+      imageEncoder: browserImageEncoder,
+      onProgress: (step) => showStatus(`${step}…`, "processing"),
+    });
 
-      // Apply other operations to each split result
-      for (const result of splitResults) {
-        await applyOperationsToDocument(
-          result.pdf,
-          enableRotation,
-          enablePageNumbers,
-          enableWatermark,
-          enableCompression,
-          enableScaling
-        );
+    const base = main.file.name.replace(/\.pdf$/i, "");
+    const label = enabled.length === 1 ? TOOL_LABELS[enabled[0]] : "processed";
+    results = outputs.map((o) => ({
+      name: `${base}_${o.suffix || label}.pdf`,
+      bytes: o.bytes,
+      pageCount: o.pageCount,
+    }));
 
-        // Apply password protection to each split result
-        if (enablePassword) {
-          const tempBytes = await result.pdf.save();
-          const protectedBytes = await applyPasswordProtection(tempBytes);
-          // Store the encrypted bytes instead of trying to reload as PDFDocument
-          result.encryptedBytes = protectedBytes;
-        }
-      }
-
-      showSplitDownloads();
-      showStatus("PDF split successfully!", "success");
-    } else {
-      // Apply operations to single document
-      await applyOperationsToDocument(
-        pdfDoc,
-        enableRotation,
-        enablePageNumbers,
-        enableWatermark,
-        enableCompression,
-        enableScaling
-      );
-
-      // 4. Apply compression
-      if (isCompressionEnabled()) {
-        pdfDoc = await compressPDF(pdfDoc);
-      }
-
-      // 5. Apply password protection
-      const saveOptions = getCompressionSaveOptions();
-      if (isPasswordEnabled()) {
-        showStatus("Applying password protection...", "processing");
-        const tempBytes = await pdfDoc.save(saveOptions);
-        const protectedBytes = await applyPasswordProtection(tempBytes);
-        processedPdfBytes = protectedBytes;
-      } else {
-        processedPdfBytes = await pdfDoc.save(saveOptions);
-      }
-
-      // Store processed PDF
-      // processedPdfBytes = await pdfDoc.save();
-
-      document.getElementById("downloadSection").style.display = "block";
-      showStatus("PDF processed successfully!", "success");
-    }
+    const inputBytes = items.reduce((sum, item) => sum + item.file.size, 0);
+    showResults(inputBytes);
+    showStatus(...resultMessage(options, report));
   } catch (error) {
-    showStatus("Error processing PDF: " + error.message, "error");
+    console.error(error);
+    showStatus(error.message || String(error), "error");
   } finally {
     processBtn.disabled = false;
+    processBtn.textContent = "process";
   }
 }
 
-async function applyOperationsToDocument(
-  pdfDoc,
-  enableRotation,
-  enablePageNumbers,
-  enableWatermark,
-  enableCompression,
-  enableScaling
-) {
-  // Check if we should keep page numbers at bottom after rotation
-  const keepNumbersAtBottom = document.getElementById(
-    "keepNumbersAtBottom"
-  ).checked;
-
-  // Apply scaling first (before other operations)
-  if (enableScaling) {
-    scaleToA4(pdfDoc);
+function resultMessage(options, report) {
+  const notes = [];
+  if (options.rotate && report.rotatedPages === 0) {
+    notes.push(`no pages matched "${options.rotate.which}", nothing was rotated`);
   }
+  if (options.compress && report.compression) {
+    const { images, savedBytes } = report.compression;
+    notes.push(
+      images > 0
+        ? `${images} image(s) re-encoded, saved ${formatSize(savedBytes)}`
+        : "no images could be made smaller"
+    );
+  }
+  if (notes.length) return [`done. ${notes.join(". ")}`, notes[0].startsWith("no pages") ? "error" : "success"];
+  return ["done", "success"];
+}
 
-  // Apply operations in the correct order
-  if (enableRotation && enablePageNumbers && keepNumbersAtBottom) {
-    // Apply rotation first, then add page numbers with rotation info
-    const rotationInfo = applyRotations(pdfDoc);
-    await addPageNumbers(pdfDoc, rotationInfo);
+processBtn.addEventListener("click", processPDF);
+
+// ------------------------------------------------------------- results ---
+
+function showResults(inputBytes) {
+  const totalBytes = results.reduce((sum, r) => sum + r.bytes.length, 0);
+  const totalPages = results.reduce((sum, r) => sum + r.pageCount, 0);
+  const change = Math.round((1 - totalBytes / inputBytes) * 100);
+  const sizeNote =
+    change > 0 ? `${change}% smaller` : change < 0 ? `${-change}% larger` : "same size";
+
+  $("resultSummary").textContent =
+    (results.length > 1 ? `${results.length} files · ` : "") +
+    `${totalPages} pages · ${formatSize(totalBytes)} (${sizeNote} than the input)`;
+
+  const downloadBtn = $("downloadBtn");
+  const links = $("splitDownloadLinks");
+  links.innerHTML = "";
+
+  if (results.length === 1) {
+    downloadBtn.textContent = `download ${results[0].name}`;
   } else {
-    // Apply page numbers first, then rotation (original behavior)
-    if (enablePageNumbers) {
-      await addPageNumbers(pdfDoc);
+    downloadBtn.textContent = `download all (${results.length} files, .zip)`;
+    for (const result of results) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "small-btn";
+      btn.textContent = `${result.name} · ${result.pageCount} p`;
+      btn.addEventListener("click", () => saveFile(result.bytes, result.name, "application/pdf"));
+      links.appendChild(btn);
     }
-    if (enableRotation) {
-      applyRotations(pdfDoc);
-    }
   }
-
-  // Add watermark
-  if (enableWatermark) {
-    await addWatermark(pdfDoc);
-  }
-
-  // Apply compression (metadata removal)
-  if (enableCompression) {
-    await compressPDF(pdfDoc);
-  }
+  downloadSection.hidden = false;
 }
 
-function getCompressionSaveOptions() {
-  if (!isCompressionEnabled()) {
-    return {};
-  }
-
-  const compressionLevel = document.getElementById("compressionLevel").value;
-  switch (compressionLevel) {
-    case "low":
-      return {
-        useObjectStreams: false,
-        addDefaultPage: false,
-      };
-    case "medium":
-      return {
-        useObjectStreams: true,
-        addDefaultPage: false,
-      };
-    case "high":
-      return {
-        useObjectStreams: true,
-        addDefaultPage: false,
-        updateFieldAppearances: false,
-      };
-    default:
-      return {
-        useObjectStreams: true,
-        addDefaultPage: false,
-      };
-  }
+function clearResults() {
+  results = [];
+  downloadSection.hidden = true;
+  $("splitDownloadLinks").innerHTML = "";
 }
 
-function showSplitDownloads() {
-  const downloadSection = document.getElementById("downloadSection");
-  const splitSection = document.getElementById("splitDownloadSection");
-  const linksContainer = document.getElementById("splitDownloadLinks");
-
-  linksContainer.innerHTML = "";
-
-  splitResults.forEach((result, index) => {
-    const button = document.createElement("button");
-    button.className = "download-btn";
-    button.style.margin = "5px";
-    button.style.padding = "10px 15px";
-    button.style.fontSize = "14px";
-    button.textContent = `Download ${result.name}.pdf`;
-
-    button.onclick = async () => {
-      // Use encrypted bytes if available, otherwise save the PDF document
-      let pdfBytes;
-      if (result.encryptedBytes) {
-        pdfBytes = result.encryptedBytes;
-      } else {
-        const saveOptions = getCompressionSaveOptions();
-        pdfBytes = await result.pdf.save(saveOptions);
-      }
-
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${fileName}_${result.name}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    };
-
-    linksContainer.appendChild(button);
-  });
-
-  // Show both the parent download section and the split section
-  downloadSection.style.display = "block";
-  splitSection.style.display = "block";
+function invalidateResults() {
+  if (results.length === 0) return;
+  clearResults();
+  showStatus("settings changed. press process to update the result", "info");
 }
 
-function downloadPDF() {
-  if (!processedPdfBytes) return;
+$("downloadBtn").addEventListener("click", async () => {
+  if (results.length === 1) {
+    saveFile(results[0].bytes, results[0].name, "application/pdf");
+    return;
+  }
+  try {
+    const JSZip = await loadJSZip();
+    const zip = new JSZip();
+    for (const result of results) zip.file(result.name, result.bytes);
+    const blob = await zip.generateAsync({ type: "uint8array" });
+    const base = mainItem().file.name.replace(/\.pdf$/i, "");
+    saveFile(blob, `${base}_split.zip`, "application/zip");
+  } catch (error) {
+    showStatus(`could not create zip: ${error.message}`, "error");
+  }
+});
 
-  const blob = new Blob([processedPdfBytes], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
+function saveFile(bytes, name, type) {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${fileName}_processed.pdf`;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-function showStatus(message, type) {
-  const statusDiv = document.getElementById("status");
-  statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+let jszipPromise;
+function loadJSZip() {
+  jszipPromise ??= new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "vendor/jszip.min.js";
+    script.onload = () => resolve(window.JSZip);
+    script.onerror = () => {
+      jszipPromise = undefined;
+      reject(new Error("failed to load zip library"));
+    };
+    document.head.appendChild(script);
+  });
+  return jszipPromise;
 }
 
-// Make functions globally available
-window.processPDF = processPDF;
-window.downloadPDF = downloadPDF;
+// ---------------------------------------------------------------- merge ---
+
+initMergeList({
+  inspect: inspectFile,
+  onChange: invalidateResults,
+  onError: (message) => showStatus(message, "error"),
+});
