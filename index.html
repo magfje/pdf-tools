@@ -26,23 +26,32 @@
           <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple hidden />
           <small class="upload-note">files never leave your device</small>
         </div>
-        <div class="file-info-section" id="fileInfo" hidden></div>
+        <div class="file-info-section" id="fileInfo" hidden>
+          <div class="file-info">
+            <div class="file-panel-header">
+              <strong id="fileCount">files</strong>
+              <span class="file-panel-buttons">
+                <button type="button" class="small-btn" id="addFilesBtn">+ add pdfs</button>
+                <button type="button" class="small-btn" id="clearBtn">× clear</button>
+              </span>
+            </div>
+            <ol class="file-list" id="fileList"></ol>
+            <div class="file-details" id="fileDetails"></div>
+            <small id="fileHint"></small>
+          </div>
+        </div>
       </div>
       <div id="status" role="status" aria-live="polite"></div>
 
       <div class="operations-grid" id="operationsGrid" hidden>
         <!-- Merge -->
-        <div class="operation-card" id="mergeCard" data-tool="merge">
+        <div class="operation-card" data-tool="merge">
           <label class="operation-header">
             <span class="operation-title">merge</span>
             <input type="checkbox" id="enableMerge" class="operation-checkbox" />
           </label>
-          <div class="operation-body merge-group" id="mergeGroup" hidden>
-            <ol class="merge-list" id="mergeList"></ol>
-            <button type="button" class="small-btn" id="mergeAddBtn">+ add pdfs</button>
-            <input type="file" id="mergeFiles" accept=".pdf,application/pdf" multiple hidden />
-            <small id="mergeSummary"></small>
-            <small>drop pdfs here · drag rows or use ↑ ↓ to reorder</small>
+          <div class="operation-body" hidden>
+            <small id="mergeHint"></small>
           </div>
         </div>
 
@@ -306,6 +315,7 @@
               <input type="checkbox" id="metaStrip" />
               <label for="metaStrip">remove everything else (creator, producer, dates)</label>
             </div>
+            <small id="metaHint"></small>
           </div>
         </div>
 

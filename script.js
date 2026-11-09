@@ -4,14 +4,13 @@ import { readMetadata } from "./tools/metadata.js";
 import { runPipeline } from "./tools/pipeline.js";
 import { browserImageEncoder } from "./ui/imageEncoder.js";
 import {
-  addFiles as addMergeFiles,
-  clearAll as clearMergeList,
+  addFiles,
+  clearAll as clearFileList,
+  formatSize,
   getItems,
-  hasExtraFiles,
-  initMergeList,
-  isPdf,
-  setMainItem,
-} from "./ui/mergeList.js";
+  initFileList,
+  isReordering,
+} from "./ui/fileList.js";
 import { readOptions } from "./ui/options.js";
 
 const $ = (id) => document.getElementById(id);
@@ -141,10 +140,13 @@ $("digipostPreset").addEventListener("click", () => {
   $("marginSeparate").dispatchEvent(new Event("change"));
   $("marginAll").value = 15;
   enableTool("enablePassword", false);
-  const pages = mainItem()?.pageCount ?? 0;
+  const items = getItems();
+  const pages = isMerging()
+    ? items.reduce((sum, item) => sum + item.pageCount, 0)
+    : Math.max(0, ...items.map((item) => item.pageCount));
   showStatus(
     "digipost preset: a4 with 15 mm margins. digipost also requires max 20 pages and no password" +
-      (pages > 20 ? ` (this file has ${pages} pages)` : ""),
+      (pages > 20 ? ` (this has ${pages} pages)` : ""),
     pages > 20 ? "error" : "info"
   );
 });
@@ -177,71 +179,44 @@ async function inspectFile(file, password) {
   }
 }
 
-function mainItem() {
-  return getItems().find((item) => item.isMain);
+/** Merge is on and there is something to merge. */
+function isMerging() {
+  return $("enableMerge").checked && getItems().length > 1;
+}
+
+/** Several files, each processed on its own. */
+function isBatch() {
+  return getItems().length > 1 && !$("enableMerge").checked;
 }
 
 async function openFiles(fileList) {
-  const files = Array.from(fileList).filter(isPdf);
-  if (files.length === 0) {
-    showStatus("that doesn't look like a pdf", "error");
-    return;
-  }
-
+  const before = getItems().length;
   showStatus("loading…", "processing");
-  let main;
-  try {
-    main = await inspectFile(files[0]);
-  } catch (error) {
-    showStatus(error.message, "error");
+  const added = await addFiles(fileList);
+  if (added === 0) {
+    if (before === 0) showStatus("that doesn't look like a pdf", "error");
     return;
   }
 
-  clearMergeList();
-  setMainItem(main);
-  clearResults();
-  operationsGrid.hidden = false;
-  processBtn.hidden = false;
-  renderFileInfo();
-
-  const extras = files.slice(1);
-  if (extras.length > 0) {
-    await addMergeFiles(extras);
-    enableTool("enableMerge");
-  }
-
-  if (main.locked) {
-    showStatus(`"${main.file.name}" is password-protected. enter its password to open it`, "error");
-  } else if (extras.length > 0) {
-    showStatus(`${files.length} files loaded and added to merge. set the order below`, "success");
-  } else {
+  const items = getItems();
+  const locked = items.filter((item) => item.locked);
+  if (locked.length > 0) {
+    showStatus(`"${locked[0].file.name}" is password-protected. enter its password in the file list`, "error");
+  } else if (items.length === 1) {
     showStatus("pdf loaded. pick the tools you want below", "success");
-  }
-}
-
-async function unlockMain(password) {
-  const main = mainItem();
-  const info = await inspectFile(main.file, password);
-  setMainItem(info);
-  renderFileInfo();
-  if (info.locked) {
-    showStatus("wrong password, try again", "error");
+  } else if ($("enableMerge").checked) {
+    showStatus(`${items.length} files. they will be merged in the order shown`, "success");
   } else {
-    showStatus("unlocked. the output will have no password unless you add one", "success");
+    showStatus(`${items.length} files. tools run on each file, or turn on merge to combine them`, "success");
   }
-}
-
-function resetAll() {
-  clearMergeList();
-  clearResults();
-  fileInfo.hidden = true;
-  fileInfo.innerHTML = "";
-  operationsGrid.hidden = true;
-  processBtn.hidden = true;
-  showStatus("");
 }
 
 $("chooseFileBtn").addEventListener("click", () => fileInput.click());
+$("addFilesBtn").addEventListener("click", () => fileInput.click());
+$("clearBtn").addEventListener("click", () => {
+  clearFileList();
+  showStatus("");
+});
 uploadSection.addEventListener("click", (e) => {
   if (e.target === uploadSection) fileInput.click();
 });
@@ -250,30 +225,32 @@ fileInput.addEventListener("change", () => {
   fileInput.value = ""; // allow picking the same file again
 });
 
-// Dropping anywhere on the page opens the files (instead of the browser
-// navigating away to show the PDF). The merge card handles its own drops.
+// Dropping anywhere on the page adds the files (instead of the browser
+// navigating away to show the PDF).
 let dragDepth = 0;
+const isFileDrag = (e) => e.dataTransfer?.types.includes("Files") && !isReordering();
 window.addEventListener("dragenter", (e) => {
-  if (!e.dataTransfer?.types.includes("Files")) return;
+  if (!isFileDrag(e)) return;
   dragDepth++;
   uploadSection.classList.add("dragover");
 });
-window.addEventListener("dragleave", () => {
+window.addEventListener("dragleave", (e) => {
+  if (!isFileDrag(e)) return;
   dragDepth = Math.max(0, dragDepth - 1);
   if (dragDepth === 0) uploadSection.classList.remove("dragover");
 });
 window.addEventListener("dragover", (e) => {
-  if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+  if (isFileDrag(e)) e.preventDefault();
 });
 window.addEventListener("drop", (e) => {
   dragDepth = 0;
   uploadSection.classList.remove("dragover");
-  if (!e.dataTransfer?.files.length) return;
+  if (isReordering() || !e.dataTransfer?.files.length) return;
   e.preventDefault();
   openFiles(e.dataTransfer.files);
 });
 
-// ------------------------------------------------------------ file info ---
+// ----------------------------------------------------------- file panel ---
 
 const PAPER_SIZES = [
   ["A3", 297, 420],
@@ -303,74 +280,86 @@ function describePageSizes(doc) {
   return paper ? `${paper[0]} ${orientation} (${dims})` : `${dims} (${orientation})`;
 }
 
-function formatSize(bytes) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} kb`;
-  return `${(bytes / 1024 / 1024).toFixed(2)} mb`;
-}
-
-function renderFileInfo() {
-  const main = mainItem();
-  fileInfo.hidden = false;
-  fileInfo.innerHTML = "";
-  const box = document.createElement("div");
-  box.className = "file-info";
-
-  const row = (label, value) => {
-    const line = document.createElement("div");
-    const strong = document.createElement("strong");
-    strong.textContent = `${label}: `;
-    line.append(strong, document.createTextNode(value));
-    box.appendChild(line);
-  };
-
-  row("file", main.file.name);
-  row("size", formatSize(main.file.size));
-
-  if (main.locked) {
-    const form = document.createElement("form");
-    form.className = "unlock-form";
-    const input = document.createElement("input");
-    input.type = "password";
-    input.placeholder = "password";
-    input.autocomplete = "off";
-    input.setAttribute("aria-label", "password for this pdf");
-    const submit = document.createElement("button");
-    submit.type = "submit";
-    submit.className = "small-btn";
-    submit.textContent = "unlock";
-    form.append(input, submit);
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      unlockMain(input.value);
-    });
-    box.appendChild(form);
-    setTimeout(() => input.focus(), 0);
-  } else {
-    row("pages", String(main.pageCount));
-    row("page size", describePageSizes(main.doc));
-    const title = main.doc.getTitle();
-    if (title) row("title", title);
-    prefillMetadata(main.doc);
+function renderFilePanel() {
+  const items = getItems();
+  const hasFiles = items.length > 0;
+  fileInfo.hidden = !hasFiles;
+  operationsGrid.hidden = !hasFiles;
+  processBtn.hidden = !hasFiles;
+  if (!hasFiles) {
+    clearResults();
+    return;
   }
 
-  const clear = document.createElement("button");
-  clear.type = "button";
-  clear.className = "small-btn clear-btn";
-  clear.textContent = "× clear";
-  clear.addEventListener("click", resetAll);
-  box.appendChild(clear);
+  const pages = items.reduce((sum, item) => sum + item.pageCount, 0);
+  $("fileCount").textContent =
+    items.length === 1 ? "1 file" : `${items.length} files · ${pages} pages`;
 
-  fileInfo.appendChild(box);
-  processBtn.disabled = main.locked;
+  const details = $("fileDetails");
+  details.innerHTML = "";
+  const only = items.length === 1 ? items[0] : null;
+  if (only && !only.locked) {
+    const row = (label, value) => {
+      const line = document.createElement("div");
+      const strong = document.createElement("strong");
+      strong.textContent = `${label}: `;
+      line.append(strong, document.createTextNode(value));
+      details.appendChild(line);
+    };
+    row("page size", describePageSizes(only.doc));
+    const title = only.doc.getTitle();
+    if (title) row("title", title);
+  }
+
+  $("fileHint").textContent =
+    items.length === 1
+      ? "add more pdfs to merge them or run the tools on all of them"
+      : $("enableMerge").checked
+        ? "merging: one pdf, in this order. drag rows or use ↑ ↓ to reorder"
+        : "each file is processed on its own. turn on merge to combine them";
+
+  $("mergeHint").textContent =
+    items.length === 1
+      ? "add more pdfs (+ add pdfs, or drop them on the page) to merge them"
+      : "combines all files into one pdf, in the order of the file list";
+
+  syncMetadataFields();
 }
 
-function prefillMetadata(doc) {
-  const meta = readMetadata(doc);
-  $("metaTitle").value = meta.title;
-  $("metaAuthor").value = meta.author;
-  $("metaSubject").value = meta.subject;
-  $("metaKeywords").value = meta.keywords;
+// Metadata fields: pre-filled from the file when there is one output, empty
+// (= keep each file's own values) when several files are processed separately.
+let prefilled = { id: null, values: null };
+const META_FIELDS = { title: "metaTitle", author: "metaAuthor", subject: "metaSubject", keywords: "metaKeywords" };
+
+function metadataFieldValues() {
+  return Object.fromEntries(Object.entries(META_FIELDS).map(([k, id]) => [k, $(id).value]));
 }
+
+function syncMetadataFields() {
+  const current = metadataFieldValues();
+  const untouched =
+    Object.values(current).every((v) => v === "") ||
+    (prefilled.values && Object.keys(META_FIELDS).every((k) => current[k] === prefilled.values[k]));
+  const first = getItems().find((item) => !item.locked);
+
+  if (isBatch() || !first) {
+    if (untouched) {
+      for (const id of Object.values(META_FIELDS)) $(id).value = "";
+      prefilled = { id: null, values: null };
+    }
+    $("metaHint").textContent = isBatch() ? "empty fields keep each file's own value" : "";
+    return;
+  }
+
+  $("metaHint").textContent = "";
+  if (untouched && prefilled.id !== first.id) {
+    const meta = readMetadata(first.doc);
+    for (const [k, id] of Object.entries(META_FIELDS)) $(id).value = meta[k];
+    prefilled = { id: first.id, values: meta };
+  }
+}
+
+$("enableMerge").addEventListener("change", renderFilePanel);
 
 // ---------------------------------------------------------- processing ---
 
@@ -388,21 +377,16 @@ const TOOL_LABELS = {
 };
 
 async function processPDF() {
-  const main = mainItem();
-  if (!main || processBtn.disabled) return;
-  if (main.locked) {
-    showStatus("unlock the pdf first", "error");
-    return;
-  }
+  const items = getItems();
+  if (items.length === 0 || processBtn.disabled) return;
 
-  const merging = $("enableMerge").checked && hasExtraFiles();
-  const items = merging ? getItems() : [main];
   const locked = items.find((item) => item.locked);
   if (locked) {
-    showStatus(`unlock "${locked.file.name}" (in the merge list) or remove it`, "error");
+    showStatus(`unlock "${locked.file.name}" (in the file list) or remove it`, "error");
     return;
   }
 
+  const merging = isMerging();
   let options;
   try {
     options = await readOptions({ merging });
@@ -410,6 +394,8 @@ async function processPDF() {
     showStatus(error.message, "error");
     return;
   }
+  if (options.metadata) options.metadata.keepEmpty = isBatch();
+
   const enabled = Object.keys(options);
   if (enabled.length === 0) {
     showStatus(
@@ -418,35 +404,45 @@ async function processPDF() {
     );
     return;
   }
+  const label = enabled.length === 1 ? TOOL_LABELS[enabled[0]] : "processed";
 
   clearResults();
   processBtn.disabled = true;
   processBtn.textContent = "processing…";
   showStatus("processing…", "processing");
 
+  const reports = [];
   try {
-    // Load fresh copies every run: the tools modify documents in place.
-    const docs = [];
-    for (const item of items) {
-      docs.push(await loadPdf(item.bytes, { name: item.file.name, password: item.password }));
+    // Each job is one pipeline run: all files merged, or one file at a time.
+    const jobs = merging ? [items] : items.map((item) => [item]);
+    const collected = [];
+    for (const [index, job] of jobs.entries()) {
+      const prefix = jobs.length > 1 ? `file ${index + 1} of ${jobs.length}: ` : "";
+      try {
+        // Load fresh copies every run: the tools modify documents in place.
+        const docs = [];
+        for (const item of job) {
+          docs.push(await loadPdf(item.bytes, { name: item.file.name, password: item.password }));
+        }
+        showStatus(`${prefix}processing…`, "processing");
+        const { outputs, report } = await runPipeline(docs, options, {
+          imageEncoder: browserImageEncoder,
+          onProgress: (step) => showStatus(`${prefix}${step}…`, "processing"),
+        });
+        reports.push(report);
+        const base = job[0].file.name.replace(/\.pdf$/i, "");
+        for (const o of outputs) {
+          collected.push({ name: `${base}_${o.suffix || label}.pdf`, bytes: o.bytes, pageCount: o.pageCount });
+        }
+      } catch (error) {
+        throw new Error(jobs.length > 1 ? `${job[0].file.name}: ${error.message}` : error.message);
+      }
     }
 
-    const { outputs, report } = await runPipeline(docs, options, {
-      imageEncoder: browserImageEncoder,
-      onProgress: (step) => showStatus(`${step}…`, "processing"),
-    });
-
-    const base = main.file.name.replace(/\.pdf$/i, "");
-    const label = enabled.length === 1 ? TOOL_LABELS[enabled[0]] : "processed";
-    results = outputs.map((o) => ({
-      name: `${base}_${o.suffix || label}.pdf`,
-      bytes: o.bytes,
-      pageCount: o.pageCount,
-    }));
-
+    results = uniqueNames(collected);
     const inputBytes = items.reduce((sum, item) => sum + item.file.size, 0);
-    showResults(inputBytes);
-    showStatus(...resultMessage(options, report));
+    showResults(inputBytes, label);
+    showStatus(...resultMessage(options, combineReports(reports)));
   } catch (error) {
     console.error(error);
     showStatus(error.message || String(error), "error");
@@ -454,6 +450,29 @@ async function processPDF() {
     processBtn.disabled = false;
     processBtn.textContent = "process";
   }
+}
+
+/** Add " (2)", " (3)" to repeated file names so downloads don't collide. */
+function uniqueNames(list) {
+  const seen = new Map();
+  return list.map((r) => {
+    const count = (seen.get(r.name) || 0) + 1;
+    seen.set(r.name, count);
+    return count === 1 ? r : { ...r, name: r.name.replace(/\.pdf$/i, ` (${count}).pdf`) };
+  });
+}
+
+function combineReports(reports) {
+  const combined = { rotatedPages: 0 };
+  for (const r of reports) {
+    combined.rotatedPages += r.rotatedPages || 0;
+    if (r.compression) {
+      combined.compression ??= { images: 0, savedBytes: 0 };
+      combined.compression.images += r.compression.images;
+      combined.compression.savedBytes += r.compression.savedBytes;
+    }
+  }
+  return combined;
 }
 
 function resultMessage(options, report) {
@@ -477,16 +496,20 @@ processBtn.addEventListener("click", processPDF);
 
 // ------------------------------------------------------------- results ---
 
-function showResults(inputBytes) {
+function showResults(inputBytes, label) {
   const totalBytes = results.reduce((sum, r) => sum + r.bytes.length, 0);
   const totalPages = results.reduce((sum, r) => sum + r.pageCount, 0);
   const change = Math.round((1 - totalBytes / inputBytes) * 100);
   const sizeNote =
-    change > 0 ? `${change}% smaller` : change < 0 ? `${-change}% larger` : "same size";
+    change > 0
+      ? `${change}% smaller than the input`
+      : change < 0
+        ? `${-change}% larger than the input`
+        : "same size as the input";
 
   $("resultSummary").textContent =
     (results.length > 1 ? `${results.length} files · ` : "") +
-    `${totalPages} pages · ${formatSize(totalBytes)} (${sizeNote} than the input)`;
+    `${totalPages} pages · ${formatSize(totalBytes)} (${sizeNote})`;
 
   const downloadBtn = $("downloadBtn");
   const links = $("splitDownloadLinks");
@@ -496,6 +519,7 @@ function showResults(inputBytes) {
     downloadBtn.textContent = `download ${results[0].name}`;
   } else {
     downloadBtn.textContent = `download all (${results.length} files, .zip)`;
+    downloadBtn.dataset.zipName = `pdftools_${label}_${results.length}_files.zip`;
     for (const result of results) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -530,8 +554,7 @@ $("downloadBtn").addEventListener("click", async () => {
     const zip = new JSZip();
     for (const result of results) zip.file(result.name, result.bytes);
     const blob = await zip.generateAsync({ type: "uint8array" });
-    const base = mainItem().file.name.replace(/\.pdf$/i, "");
-    saveFile(blob, `${base}_split.zip`, "application/zip");
+    saveFile(blob, $("downloadBtn").dataset.zipName, "application/zip");
   } catch (error) {
     showStatus(`could not create zip: ${error.message}`, "error");
   }
@@ -565,8 +588,11 @@ function loadJSZip() {
 
 // ---------------------------------------------------------------- merge ---
 
-initMergeList({
+initFileList({
   inspect: inspectFile,
-  onChange: invalidateResults,
+  onChange: () => {
+    renderFilePanel();
+    invalidateResults();
+  },
   onError: (message) => showStatus(message, "error"),
 });

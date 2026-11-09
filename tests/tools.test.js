@@ -243,3 +243,12 @@ test("stamps drawn after scaling are not scaled with the content", async () => {
   const textIndex = decoded.findIndex((t) => t.includes("Tj"));
   assert.ok(qIndex >= 0 && textIndex > qIndex, "page number is drawn after the scaled content is closed");
 });
+
+test("metadata keepEmpty leaves untouched fields alone", async () => {
+  const doc = await makeDoc([[1, 1]], { title: "own title" });
+  doc.setAuthor("own author");
+  applyMetadata(doc, { title: "", author: "new author", subject: "", keywords: "", keepEmpty: true });
+  const meta = readMetadata(await roundTrip(doc));
+  assert.equal(meta.title, "own title");
+  assert.equal(meta.author, "new author");
+});

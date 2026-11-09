@@ -5,14 +5,16 @@ uploaded: everything happens on your device.
 
 ## Tools
 
-Turn on any combination of tools and press **process**. They always run in
-this order, so the result is predictable:
+Add one or more PDFs, turn on any combination of tools and press **process**.
+With several files, the tools run on **each file separately** (download them
+one by one or as a `.zip`), unless **merge** is on, which combines them into one
+PDF in the order of the file list. Tools always run in this order:
 
 **merge → remove pages → rotate → scale to A4 → margins → page numbers → watermark → compress → split → metadata → password**
 
 | Tool | What it does |
 | --- | --- |
-| **Merge** | Combine any number of PDFs. Drop or pick several files, then drag rows (or use ↑ ↓) to set the order. The main file can go anywhere. |
+| **Merge** | Combine all uploaded PDFs into one, in the order of the file list (drag rows or use ↑ ↓). |
 | **Remove pages** | Drop pages by number, e.g. `1, 4-6, 10-`. |
 | **Rotate** | 90°/180°/270°, for all, landscape-only or portrait-only pages. Adds to any rotation the page already has, and judges landscape/portrait by how the page is displayed. |
 | **Scale to A4** | Fit each page to A4 in its own orientation, fit to portrait A4, or stretch. Content is centred and links stay aligned. |
@@ -21,7 +23,7 @@ this order, so the result is predictable:
 | **Watermark** | Text or PNG/JPEG image with position, rotation and opacity. |
 | **Compress** | Re-encodes large images as JPEG at high/medium/low quality and saves with compact object streams. Text and vector graphics are untouched. |
 | **Split** | Single pages, every _n_ pages, custom ranges, or odd/even. Download each part or everything as a `.zip`. |
-| **Metadata** | Edit title, author, subject and keywords (pre-filled from the file), or remove all metadata. |
+| **Metadata** | Edit title, author, subject and keywords (pre-filled from the file), or remove all metadata. When several files are processed separately, empty fields keep each file's own value. |
 | **Password** | AES-128 encryption that opens in any PDF reader. |
 
 Password-protected PDFs can be opened too. Enter the password and the output
@@ -39,7 +41,7 @@ npm test                 # unit tests (Node 22+, no dependencies to install)
 
 ```
 script.js        app wiring: file loading, results, downloads
-ui/              DOM helpers: merge list, reading settings, canvas image encoder
+ui/              DOM helpers: file list, reading settings, canvas image encoder
 tools/           the PDF tools. Plain functions (pdfDoc, options) with no DOM access
   pipeline.js    runs the enabled tools in order
   geometry.js    "as displayed" page geometry shared by the tools

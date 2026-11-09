@@ -31,7 +31,8 @@ export function copyInfo(fromDoc, toDoc) {
 /**
  * opts: { strip, title, author, subject, keywords }
  * With `strip`, everything is removed first; then any non-empty field is set.
- * Without `strip`, a field left empty clears that value.
+ * Without `strip`, a field left empty clears that value, unless `keepEmpty`
+ * is set (used when the same settings run on several files).
  */
 export function applyMetadata(pdfDoc, opts) {
   if (opts.strip) stripMetadata(pdfDoc);
@@ -42,7 +43,7 @@ export function applyMetadata(pdfDoc, opts) {
     const value = (opts[field] ?? "").trim();
     if (value) {
       info.set(PDFName.of(key), PDFHexString.fromText(value));
-    } else if (!opts.strip) {
+    } else if (!opts.strip && !opts.keepEmpty) {
       info.delete(PDFName.of(key));
     }
   }

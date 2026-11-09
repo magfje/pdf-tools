@@ -514,7 +514,7 @@ input[type="file"]:hover {
 .file-info {
   font-family: var(--font-family);
   background: var(--transparent);
-  padding: var(--spacing-4xl);
+  padding: var(--spacing-2xl);
   border: var(--border-dashed);
   color: var(--primary-text);
   height: 100%;
@@ -771,32 +771,16 @@ select * {
 }
 
 /* Merge file list */
-.operation-card[data-tool="merge"].active {
-  grid-column: span 2;
-}
 
-.merge-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-xs);
-  border: var(--border-width) dashed transparent;
-  transition: var(--transition-fast);
-}
 
-.merge-group.dragover {
-  border-color: var(--primary-text);
-  background: var(--hover-overlay);
-}
-
-.merge-list {
+.file-list {
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.merge-item {
+.file-item {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -809,34 +793,31 @@ select * {
   user-select: none;
 }
 
-.merge-item:hover {
+.file-item:hover {
   background: var(--hover-overlay);
 }
 
-.merge-item.dragging {
+.file-item.dragging {
   opacity: 0.4;
 }
 
-.merge-item.drop-before {
+.file-item.drop-before {
   box-shadow: 0 -2px 0 var(--primary-text);
 }
 
-.merge-item.drop-after {
+.file-item.drop-after {
   box-shadow: 0 2px 0 var(--primary-text);
 }
 
-.merge-item-main {
-  border-style: dashed;
-}
 
-.merge-handle,
-.merge-pos,
-.merge-meta {
+.file-handle,
+.file-pos,
+.file-meta {
   color: var(--muted-text);
   flex-shrink: 0;
 }
 
-.merge-name {
+.file-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -844,13 +825,13 @@ select * {
   white-space: nowrap;
 }
 
-.merge-actions {
+.file-actions {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
 }
 
-.merge-btn,
+.file-btn,
 .small-btn {
   font-family: var(--font-family);
   background: var(--transparent);
@@ -860,20 +841,20 @@ select * {
   transition: var(--transition-fast);
 }
 
-.merge-btn {
+.file-btn {
   width: 1.8em;
   height: 1.8em;
   font-size: var(--font-size-base);
   line-height: 1;
 }
 
-.merge-btn:hover:not(:disabled),
+.file-btn:hover:not(:disabled),
 .small-btn:hover {
   background: var(--primary-text);
   color: var(--primary-bg);
 }
 
-.merge-btn:disabled {
+.file-btn:disabled {
   opacity: 0.3;
   cursor: default;
 }
@@ -886,12 +867,12 @@ select * {
 }
 
 
-.merge-item-locked .merge-meta {
+.file-item-locked .file-meta {
   color: var(--primary-text);
   font-weight: 600;
 }
 
-.merge-unlock {
+.file-unlock {
   flex-basis: 100%;
 }
 
@@ -940,8 +921,26 @@ select * {
   margin-top: var(--spacing-md);
 }
 
-.file-info .clear-btn {
-  margin-top: var(--spacing-md);
+.file-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.file-panel-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.file-details {
+  margin: var(--spacing-sm) 0;
+}
+
+.file-info > small {
+  display: block;
 }
 
 .file-info-section {
@@ -991,9 +990,6 @@ input:disabled {
     padding: 15px;
   }
 
-  .operation-card[data-tool="merge"].active {
-    grid-column: auto;
-  }
 
   .upload-section {
     padding: 30px 15px;
@@ -1015,5 +1011,10 @@ input:disabled {
 
   .margin-sides {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* drag-to-reorder doesn't work on touch screens; ↑ ↓ do */
+  .file-handle {
+    display: none;
   }
 }
