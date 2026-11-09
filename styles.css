@@ -756,6 +756,119 @@ select * {
   color: var(--primary-text) !important;
 }
 
+/* Merge file list */
+.operation-card.expanded {
+  grid-column: span 2;
+}
+
+.merge-group {
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border: var(--border-width) dashed transparent;
+  transition: var(--transition-fast);
+}
+
+.merge-group.dragover {
+  border-color: var(--primary-text);
+  background: var(--hover-overlay);
+}
+
+.merge-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.merge-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 6px var(--spacing-xs);
+  border: var(--border-solid);
+  font-size: var(--font-size-base);
+  background: var(--primary-bg);
+  cursor: grab;
+  user-select: none;
+}
+
+.merge-item:hover {
+  background: var(--hover-overlay);
+}
+
+.merge-item.dragging {
+  opacity: 0.4;
+}
+
+.merge-item.drop-before {
+  box-shadow: 0 -2px 0 var(--primary-text);
+}
+
+.merge-item.drop-after {
+  box-shadow: 0 2px 0 var(--primary-text);
+}
+
+.merge-item-main {
+  border-style: dashed;
+}
+
+.merge-handle,
+.merge-pos,
+.merge-meta {
+  color: var(--muted-text);
+  flex-shrink: 0;
+}
+
+.merge-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.merge-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.merge-btn,
+.merge-add-btn {
+  font-family: var(--font-family);
+  background: var(--transparent);
+  color: var(--primary-text);
+  border: var(--border-solid);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.merge-btn {
+  width: 1.8em;
+  height: 1.8em;
+  font-size: var(--font-size-base);
+  line-height: 1;
+}
+
+.merge-btn:hover:not(:disabled),
+.merge-add-btn:hover {
+  background: var(--primary-text);
+  color: var(--primary-bg);
+}
+
+.merge-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.merge-add-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 15px;
@@ -774,6 +887,10 @@ select * {
 
   .operation-card {
     padding: 15px;
+  }
+
+  .operation-card.expanded {
+    grid-column: auto;
   }
 
   .upload-section {

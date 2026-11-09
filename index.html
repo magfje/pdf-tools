@@ -51,10 +51,10 @@
       <div class="upload-section-container">
         <div class="upload-section" id="uploadSection">
           <p style="margin-bottom: 20px; font-size: 18px">
-            drop your pdf file here or click to browse
+            drop your pdf file(s) here or click to browse
           </p>
           <button class="upload-btn" id="chooseFileBtn">click</button>
-          <input type="file" id="fileInput" accept=".pdf" />
+          <input type="file" id="fileInput" accept=".pdf" multiple />
         </div>
         <div class="file-info-section" id="fileInfo"></div>
       </div>
@@ -198,7 +198,7 @@
         </div>
 
         <!-- PDF Merge -->
-        <div class="operation-card">
+        <div class="operation-card" id="mergeCard">
           <div class="operation-header">
             <h3>merge</h3>
             <input
@@ -207,12 +207,20 @@
               class="operation-checkbox"
             />
           </div>
-          <div class="form-group" id="mergeGroup" style="display: none">
-            <label for="mergeFiles">select pdfs to merge:</label>
-            <input type="file" id="mergeFiles" accept=".pdf" multiple />
-            <small style="color: #666; font-size: 12px">
-              files will be merged in the order selected
-            </small>
+          <div id="mergeGroup" class="merge-group" style="display: none">
+            <ol class="merge-list" id="mergeList"></ol>
+            <button type="button" class="merge-add-btn" id="mergeAddBtn">
+              + add pdfs
+            </button>
+            <input
+              type="file"
+              id="mergeFiles"
+              accept=".pdf,application/pdf"
+              multiple
+              hidden
+            />
+            <small id="mergeSummary"></small>
+            <small>drop pdfs here · drag rows or use ↑ ↓ to reorder</small>
           </div>
         </div>
 

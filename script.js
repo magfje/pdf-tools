@@ -1,5 +1,14 @@
 import { compressPDF, isCompressionEnabled } from "./tools/compress.js";
-import { getMergeFiles, isMergeEnabled, mergePDFs } from "./tools/merge.js";
+import {
+  addMergeFiles,
+  getMergeFiles,
+  hasExtraMergeFiles,
+  initMergeUI,
+  isMergeEnabled,
+  isPdf,
+  mergePDFs,
+  setMainMergeFile,
+} from "./tools/merge.js";
 import { addPageNumbers, isPageNumbersEnabled } from "./tools/pageNumbers.js";
 import {
   applyPasswordProtection,
@@ -27,6 +36,7 @@ fileInput.addEventListener("change", handleFileSelect);
 chooseFileBtn.addEventListener("click", () => fileInput.click());
 processBtn.addEventListener("click", processPDF);
 downloadBtn.addEventListener("click", downloadPDF);
+initMergeUI();
 
 // Theme switcher
 const themeSwitcher = document.getElementById("themeSwitcher");
@@ -85,9 +95,11 @@ uploadSection.addEventListener("dragleave", () => {
 uploadSection.addEventListener("drop", (e) => {
   e.preventDefault();
   uploadSection.classList.remove("dragover");
-  const files = e.dataTransfer.files;
-  if (files.length > 0 && files[0].type === "application/pdf") {
-    fileInput.files = files;
+  const files = Array.from(e.dataTransfer.files).filter(isPdf);
+  if (files.length > 0) {
+    const dt = new DataTransfer();
+    files.forEach((f) => dt.items.add(f));
+    fileInput.files = dt.files;
     handleFileSelect();
   }
 });
@@ -110,10 +122,16 @@ document
   });
 
 document.getElementById("enableMerge").addEventListener("change", function () {
-  document.getElementById("mergeGroup").style.display = this.checked
-    ? "block"
-    : "none";
+  setMergeVisible(this.checked);
 });
+
+function setMergeVisible(visible) {
+  document.getElementById("enableMerge").checked = visible;
+  document.getElementById("mergeGroup").style.display = visible
+    ? "flex"
+    : "none";
+  document.getElementById("mergeCard").classList.toggle("expanded", visible);
+}
 
 document.getElementById("enableSplit").addEventListener("change", function () {
   document.getElementById("splitGroup").style.display = this.checked
@@ -291,8 +309,10 @@ function getPageSizeInfo(pdfDoc) {
 }
 
 async function handleFileSelect() {
-  const file = fileInput.files[0];
+  const files = Array.from(fileInput.files).filter(isPdf);
+  const file = files[0];
   if (!file) return;
+  const extraFiles = files.slice(1);
 
   fileName = file.name.replace(".pdf", "");
   showStatus("Loading PDF...", "processing");
@@ -324,6 +344,17 @@ async function handleFileSelect() {
 
     // Update start page max value
     document.getElementById("startPage").max = pageCount;
+
+    // Keep the merge list in sync; extra files go straight into it
+    setMainMergeFile(file);
+    if (extraFiles.length > 0) {
+      addMergeFiles(extraFiles);
+      setMergeVisible(true);
+      showStatus(
+        `PDF loaded! ${extraFiles.length} more file(s) added to merge — set the order below.`,
+        "success"
+      );
+    }
   } catch (error) {
     showStatus("Error loading PDF: " + error.message, "error");
   }
@@ -363,11 +394,9 @@ async function processPDF() {
 
     // Handle merge operation first (if enabled)
     if (enableMerge) {
-      const mergeFiles = Array.from(getMergeFiles());
-      if (mergeFiles.length > 0) {
-        // Combine original file with merge files
-        const allFiles = [fileInput.files[0], ...mergeFiles];
-        pdfDoc = await mergePDFs(allFiles);
+      if (hasExtraMergeFiles()) {
+        // Merge all files (main file included) in the user's chosen order
+        pdfDoc = await mergePDFs(getMergeFiles());
         fileName = fileName + "_merged";
       } else {
         // Create a copy of the original document if no merge files
