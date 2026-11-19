@@ -1,4 +1,4 @@
-import { PDFArray, PDFDict, PDFHexString, PDFStream, PDFString } from "./pdflib.js";
+import { PDFArray, PDFDict, PDFHeader, PDFHexString, PDFStream, PDFString } from "./pdflib.js";
 
 /**
  * Password-protect a document (AES-128, readable by every common PDF viewer).
@@ -7,10 +7,14 @@ import { PDFArray, PDFDict, PDFHexString, PDFStream, PDFString } from "./pdflib.
  */
 export async function encryptPDF(pdfDoc, password, { useObjectStreams = true } = {}) {
   if (!password) throw new Error("password: enter a password");
+  // The library ignores `pdfVersion` below and picks the cipher from the file's
+  // header instead: RC4-128 for PDF 1.4/1.5, 40-bit RC4 for older files and
+  // PDF 2.0. Declare 1.7 so every file gets AES-128.
+  pdfDoc.context.header = PDFHeader.forVersion(1, 7);
   await pdfDoc.encrypt({
     userPassword: password,
     ownerPassword: password,
-    pdfVersion: "1.7", // V4 / AESV2. The library's default is 40-bit RC4.
+    pdfVersion: "1.7", // V4 / AESV2 (overwritten from the header, see above).
     permissions: {
       printing: "highResolution",
       modifying: true,

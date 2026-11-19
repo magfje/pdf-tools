@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PDFHexString, PDFName, PDFRawStream, PDFRef, PDFString, decodePDFRawStream } from "../tools/pdflib.js";
+import { PDFHeader, PDFHexString, PDFName, PDFRawStream, PDFRef, PDFString, decodePDFRawStream } from "../tools/pdflib.js";
 import { A4, displayGeometry, getRotation } from "../tools/geometry.js";
 import { rotatePages } from "../tools/rotation.js";
 import { scaleToA4 } from "../tools/scale.js";
@@ -172,6 +172,19 @@ for (const useObjectStreams of [true, false]) {
     assert.ok(strings.includes(utf16("Vedtak æøå")));
   });
 }
+
+test("password: older files still get AES, not the library's RC4 fallback", async () => {
+  for (const [major, minor] of [[1, 3], [1, 4], [2, 0]]) {
+    const doc = await makeDoc([[100, 100]], { title: "old" });
+    doc.context.header = PDFHeader.forVersion(major, minor);
+    await encryptPDF(doc, "s3cret");
+    const bytes = await doc.save();
+    const text = Buffer.from(bytes).toString("latin1");
+    assert.match(text, /\/V 4\b/, `PDF ${major}.${minor}`);
+    assert.match(text, /\/CFM \/AESV2/);
+    decryptTopLevelStrings(bytes, "s3cret");
+  }
+});
 
 test("files with only an owner password open without asking", async () => {
   const doc = await makeDoc([[100, 100]]);
