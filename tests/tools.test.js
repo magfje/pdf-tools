@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { PDFHeader, PDFHexString, PDFName, PDFRawStream, PDFRef, PDFString, decodePDFRawStream } from "../tools/pdflib.js";
 import { A4, displayGeometry, getRotation } from "../tools/geometry.js";
 import { rotatePages } from "../tools/rotation.js";
@@ -247,6 +248,24 @@ test("compression replaces large images with the encoder's smaller output", asyn
   assert.equal(img.dict.get(PDFName.of("Width")).asNumber(), 60);
 });
 
+test("compression leaves soft masks alone (they must stay grayscale)", async () => {
+  const doc = await makeDoc([[100, 100]]);
+  const w = 200, h = 200; // above the 20 KB "worth compressing" threshold, even in gray
+  const noise = (n) => new Uint8Array(randomBytes(n));
+  const image = (pixels, extra) =>
+    doc.context.flateStream(pixels, { Type: "XObject", Subtype: "Image", Width: w, Height: h, BitsPerComponent: 8, ...extra });
+  const maskRef = doc.context.register(image(noise(w * h), { ColorSpace: "DeviceGray" }));
+  const imageRef = doc.context.register(image(noise(w * h * 3), { ColorSpace: "DeviceRGB", SMask: maskRef }));
+  const loaded = await roundTrip(doc);
+  const encoder = async () => ({ bytes: new Uint8Array(1000), width: 60, height: 60 });
+  const { images } = await recompressImages(loaded, "medium", encoder);
+  assert.equal(images, 1);
+  assert.equal(loaded.context.lookup(imageRef).dict.get(PDFName.of("Filter")), PDFName.of("DCTDecode"));
+  const mask = loaded.context.lookup(maskRef).dict;
+  assert.equal(mask.get(PDFName.of("ColorSpace")), PDFName.of("DeviceGray"));
+  assert.notEqual(mask.get(PDFName.of("Filter")), PDFName.of("DCTDecode"));
+});
+
 // --- pipeline ----------------------------------------------------------------------
 
 test("pipeline merges in the given order and splits with suffixes", async () => {
@@ -265,6 +284,9 @@ test("pipeline with password encrypts every split part", async () => {
   for (const o of outputs) {
     await assert.rejects(loadPdf(o.bytes), PasswordRequiredError);
     assert.equal((await loadPdf(o.bytes, { password: "pw" })).getPageCount(), 1);
+    const text = Buffer.from(o.bytes).toString("latin1");
+    assert.doesNotMatch(text, /\/ObjStm|\/XRef/, "encrypted output uses a classic xref table");
+    decryptTopLevelStrings(o.bytes, "pw");
   }
 });
 

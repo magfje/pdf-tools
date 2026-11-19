@@ -26,17 +26,19 @@ export const approx = (a, b, eps = 0.01) => Math.abs(a - b) < eps;
  */
 export function decryptTopLevelStrings(bytes, password) {
   const s = Buffer.from(bytes).toString("latin1");
-  const hexOf = (re) => Buffer.from(s.match(re)[1], "hex");
-  const O = hexOf(/\/O <([0-9a-fA-F]+)>/);
-  const id = hexOf(/\/ID \[ <([0-9a-fA-F]+)>/);
+  // Read /O and /P from the Encrypt dictionary itself: annotations have /P too.
+  const encryptObj = s.match(/\/Encrypt (\d+) (\d+) R/).slice(1).join(" ");
+  const encStart = s.indexOf(`${encryptObj} obj`);
+  const encDict = s.slice(encStart, s.indexOf("endobj", encStart));
+  const O = Buffer.from(encDict.match(/\/O <([0-9a-fA-F]+)>/)[1], "hex");
+  const id = Buffer.from(s.slice(s.lastIndexOf("/ID")).match(/\/ID \[ <([0-9a-fA-F]+)>/)[1], "hex");
   const P = Buffer.alloc(4);
-  P.writeInt32LE(Number(s.match(/\/P (-?\d+)/)[1]));
+  P.writeInt32LE(Number(encDict.match(/\/P (-?\d+)/)[1]));
   const PAD = Buffer.from("28BF4E5E4E758A4164004E56FFFA01082E2E00B6D0683E802F0CA9FE6453697A", "hex");
   const pw = Buffer.concat([Buffer.from(password, "latin1"), PAD]).subarray(0, 32);
   let key = createHash("md5").update(pw).update(O).update(P).update(id).digest();
   for (let i = 0; i < 50; i++) key = createHash("md5").update(key).digest();
 
-  const encryptObj = s.match(/\/Encrypt (\d+) (\d+) R/).slice(1).join(" ");
   const strings = [];
   for (const m of s.matchAll(/(\d+) (\d+) obj([\s\S]*?)(?:stream\r?\n|endobj)/g)) {
     const [, num, gen, body] = m;

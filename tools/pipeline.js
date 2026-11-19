@@ -77,7 +77,10 @@ export async function runPipeline(docs, options, env = {}) {
   for (const [i, part] of parts.entries()) {
     if (parts.length > 1) progress(`saving ${i + 1} of ${parts.length}`);
     if (options.metadata) applyMetadata(part.pdf, options.metadata);
-    const saveOptions = getSaveOptions();
+    // Encrypted files get the classic xref table, like Acrobat's own and our
+    // pre-AES output: Acrobat flagged encrypted object-stream files as damaged
+    // although qpdf, MuPDF and Poppler accept them.
+    const saveOptions = options.password ? { ...getSaveOptions(), useObjectStreams: false } : getSaveOptions();
     if (options.password) await encryptPDF(part.pdf, options.password.password, saveOptions);
     const bytes = await part.pdf.save(saveOptions);
     outputs.push({ suffix: part.suffix, bytes, pageCount: part.pdf.getPageCount() });

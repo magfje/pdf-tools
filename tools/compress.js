@@ -4,6 +4,8 @@ import {
   PDFName,
   PDFNumber,
   PDFRawStream,
+  PDFRef,
+  PDFStream,
   decodePDFRawStream,
 } from "./pdflib.js";
 
@@ -35,11 +37,13 @@ export async function recompressImages(pdfDoc, level, encoder) {
   const { context } = pdfDoc;
   let images = 0;
   let savedBytes = 0;
+  const masks = maskRefs(context);
 
   for (const [ref, obj] of context.enumerateIndirectObjects()) {
     if (!(obj instanceof PDFRawStream)) continue;
     const dict = obj.dict;
     if (dict.get(PDFName.of("Subtype")) !== PDFName.of("Image")) continue;
+    if (masks.has(ref)) continue; // masks must stay single-channel; JPEGs come out RGB
     if (obj.contents.length < MIN_IMAGE_BYTES) continue;
 
     const input = describeImage(obj, context);
@@ -71,6 +75,19 @@ export async function recompressImages(pdfDoc, level, encoder) {
   }
 
   return { images, savedBytes };
+}
+
+/** Images used as another image's soft mask (/SMask) or stencil mask (/Mask). */
+function maskRefs(context) {
+  const refs = new Set();
+  for (const [, obj] of context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFStream)) continue;
+    for (const key of ["SMask", "Mask"]) {
+      const value = obj.dict.get(PDFName.of(key));
+      if (value instanceof PDFRef) refs.add(value);
+    }
+  }
+  return refs;
 }
 
 function describeImage(stream, context) {
