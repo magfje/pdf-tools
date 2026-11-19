@@ -77,8 +77,9 @@ export async function runPipeline(docs, options, env = {}) {
   for (const [i, part] of parts.entries()) {
     if (parts.length > 1) progress(`saving ${i + 1} of ${parts.length}`);
     if (options.metadata) applyMetadata(part.pdf, options.metadata);
-    if (options.password) await encryptPDF(part.pdf, options.password.password);
-    const bytes = await part.pdf.save(getSaveOptions());
+    const saveOptions = getSaveOptions();
+    if (options.password) await encryptPDF(part.pdf, options.password.password, saveOptions);
+    const bytes = await part.pdf.save(saveOptions);
     outputs.push({ suffix: part.suffix, bytes, pageCount: part.pdf.getPageCount() });
   }
 

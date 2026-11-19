@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PDFName, PDFRawStream, decodePDFRawStream } from "../tools/pdflib.js";
+import { PDFHexString, PDFName, PDFRawStream, PDFRef, PDFString, decodePDFRawStream } from "../tools/pdflib.js";
 import { A4, displayGeometry, getRotation } from "../tools/geometry.js";
 import { rotatePages } from "../tools/rotation.js";
 import { scaleToA4 } from "../tools/scale.js";
@@ -14,7 +14,7 @@ import { recompressImages } from "../tools/compress.js";
 import { addPageNumbers, formatPageNumber } from "../tools/pageNumbers.js";
 import { addWatermark } from "../tools/watermark.js";
 import { runPipeline } from "../tools/pipeline.js";
-import { approx, makeDoc, roundTrip } from "./helpers.js";
+import { approx, decryptTopLevelStrings, makeDoc, roundTrip } from "./helpers.js";
 
 const size = (page) => {
   const v = displayGeometry(page);
@@ -144,6 +144,34 @@ test("password: encrypt, then open with right / wrong / no password", async () =
   const opened = await loadPdf(bytes, { password: "s3cret" });
   assert.equal(opened.getPageCount(), 2);
 });
+
+// Acrobat reported these files as damaged: pdf-lib-with-encrypt left strings in
+// objects outside object streams unencrypted.
+for (const useObjectStreams of [true, false]) {
+  test(`password: strings outside object streams are encrypted (objectStreams=${useObjectStreams})`, async () => {
+    const doc = await makeDoc([[100, 100]], { title: "Vedtak æøå" });
+    // Move the Info dict to generation 1 (as in files re-saved by other tools),
+    // which the writer always keeps outside object streams.
+    const { context } = doc;
+    const info = context.lookup(context.trailerInfo.Info);
+    const infoRef = PDFRef.of(context.largestObjectNumber + 1, 1);
+    context.assign(infoRef, info);
+    context.delete(context.trailerInfo.Info);
+    context.trailerInfo.Info = infoRef;
+    // A string in a stream dictionary, which is never put in an object stream.
+    const stream = context.flateStream("hello", { Name: PDFString.of("label (1)"), Id: PDFHexString.of("BEEF") });
+    doc.catalog.set(PDFName.of("Extra"), context.register(stream));
+
+    await encryptPDF(doc, "s3cret", { useObjectStreams });
+    const bytes = await doc.save({ useObjectStreams });
+
+    const strings = decryptTopLevelStrings(bytes, "s3cret").map((b) => b.toString("latin1"));
+    assert.ok(strings.includes("label (1)"));
+    assert.ok(strings.includes("\xbe\xef"));
+    const utf16 = (t) => "\xfe\xff" + Buffer.from(t, "utf16le").swap16().toString("latin1");
+    assert.ok(strings.includes(utf16("Vedtak æøå")));
+  });
+}
 
 test("files with only an owner password open without asking", async () => {
   const doc = await makeDoc([[100, 100]]);
